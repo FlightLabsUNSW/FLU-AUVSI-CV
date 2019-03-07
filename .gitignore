@@ -102,3 +102,9 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# Data files
+image_labeling/video_split/videos
+image_labeling/video_split/videos_old
+image_labeling/video_split/images
+image_labeling/video_split/cv_data.zip
