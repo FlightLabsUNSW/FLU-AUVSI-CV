@@ -23,8 +23,11 @@ image_folder = args.image_folder
 
 all_im = []
 for i in os.listdir(image_folder):
-    for j in os.listdir(os.path.join(image_folder, i)):
-        all_im.append(os.path.join(image_folder, i, j))
+    if os.path.isdir(i):
+        for j in os.listdir(os.path.join(image_folder, i)):
+            all_im.append(os.path.join(image_folder, i, j))
+    else:
+        all_im.append(os.path.join(image_folder,i))
 
 make_folder(args.dest)
 for i in range(0, args.num_datasets):
