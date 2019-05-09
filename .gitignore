@@ -107,4 +107,6 @@ venv.bak/
 image_labeling/videos
 image_labeling/videos_old
 image_labeling/images
+image_labeling/images_curated
 image_labeling/cv_data.zip
+multiproc/run.mp4
