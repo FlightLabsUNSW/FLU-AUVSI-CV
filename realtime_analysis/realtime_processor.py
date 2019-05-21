@@ -2,6 +2,7 @@
 import cv2 as cv
 import numpy as np
 import os, sys
+from datetime import datetime
 
 # Initialize the parameters
 confThreshold = 0.5  #Confidence threshold
@@ -69,13 +70,11 @@ def postprocess(frame, outs):
         top = box[1]
         width = box[2]
         height = box[3]
-        detected_objs.append(classIds[i], confidences[i], left, top, left + width, top + height)
+        detected_objs.append((classIds[i], confidences[i], left, top, left + width, top + height))
 
 
 
 def classify(frame):
-    # Create a 4D blob from a frame.
-    blob = cv.dnn.blobFromImage(frame, 1/255, (inpWidth, inpHeight), [0,0,0], 1, crop=False)
     # Create a 4D blob from a frame.
     blob = cv.dnn.blobFromImage(frame, 1/255, (inpWidth, inpHeight), [0,0,0], 1, crop=False)
 
@@ -100,7 +99,21 @@ def classify(frame):
 def run_classification(cmd_pipe, data_pipe, vid_num):
     cap = cv.VideoCapture()
     done = False
+
+    cmd_pip.send({'starting':1})
+
     while not done:
         has_img, img = cap.read()
         if not has_img:
             cap.release()
+            cmd_pip.send({'finished':1})
+            done = True
+        else:
+            found_objs = classify(img)
+            obj_detected = {}
+            obj_detected['image'] = img
+            obj_detected['objects'] = found_objs
+            obj_detected['time_taken'] = datetime.now().timestamp()
+
+            data_pipe.send(obj_detected)
+
