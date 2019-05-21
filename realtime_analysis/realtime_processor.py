@@ -96,11 +96,13 @@ def classify(frame):
     # Remove the bounding boxes with low confidence
     return postprocess(frame, outs)
 
-def run_classification(cmd_pipe, data_pipe, vid_num):
-    cap = cv.VideoCapture()
+def run_classification(cmd_pipe, data_pipe, vid_name):
+    cap = cv.VideoCapture(vid_name)
     done = False
 
-    cmd_pip.send({'starting':1})
+    while not cmd_pipe.recv()['run']:
+        continue
+    cmd_pipe.send({'started':1})
 
     while not done:
         has_img, img = cap.read()
