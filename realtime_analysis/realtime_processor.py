@@ -70,7 +70,7 @@ def postprocess(frame, outs):
         top = box[1]
         width = box[2]
         height = box[3]
-        detected_objs.append((classIds[i], confidences[i], left, top, left + width, top + height))
+        detected_objs.append({'class':classIds[i], 'confidence':confidences[i], 'left':left, 'top':top, 'right':left + width, 'bottom':top + height})
 
 
 
