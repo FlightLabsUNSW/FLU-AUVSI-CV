@@ -118,4 +118,7 @@ def run_classification(cmd_pipe, data_pipe, vid_name):
             obj_detected['time_taken'] = datetime.now().timestamp()
 
             data_pipe.send(obj_detected)
+            cmd_pipe.send({'object_sent':1})
 
+    #redundant from Process.join() but still do it anyway
+    cmd_pipe.send({'done':1})
