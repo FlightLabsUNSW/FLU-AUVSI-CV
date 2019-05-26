@@ -1,5 +1,9 @@
 import os
 import cv2 as cv
+import random
+import numpy as np
+
+DEBUG = False
 
 empty_imgs_dir = 'empty_imgs'
 flu_odlcs_dir = 'flu_odlcs'
@@ -23,10 +27,37 @@ for img in empty_imgs:
     added_odlcs = random.sample(flu_odlcs, random.randint(0,len(flu_odlcs)))
     
     for odlc in added_odlcs:
-        odlc_path = os.path.join(cwd, flu_odlcs_dir, odlc)
+        odlc_path = os.path.join(cwd, flu_odlcs_dir, odlc[-1])
+
         odlc_arr = cv.imread(odlc_path)
+        print(odlc_arr, odlc_arr.shape)
+        scale = 8
+        odlc_arr = cv.resize(odlc_arr, tuple([int(odlc_arr.shape[0]/scale), int(odlc_arr.shape[1]/scale)]))
+
         top_left = random.randint(0, img_arr.shape[0]-odlc_arr.shape[0]), random.randint(0, img_arr.shape[1]-odlc_arr.shape[1])
-        for row in range(odlc_arr.shape[0]):
-            for col in range(odlc_arr.shape[1]):
-                if odlc_arr[row,col].sum() < (250,250,250).sum():
-                    img_arr[top_left+np.array((row, col))] = odlc_arr[row, col]
+        
+        if DEBUG:
+            print((img_arr.shape[0]-odlc_arr.shape[0], img_arr.shape[1]-odlc_arr.shape[1]))
+            print(img_arr.shape)
+            print(odlc_arr.shape)
+            print(top_left)
+
+        for col in range(odlc_arr.shape[1]): 
+            for row in range(odlc_arr.shape[0]):
+                if np.array(odlc_arr[row,col]).sum() < np.array((250,250,250)).sum():
+                    ins = odlc_arr[row, col]
+
+                    insert_point = top_left+np.array((row, col))
+                    try:
+                        img_arr[insert_point[0], insert_point[1]] = ins
+                    except Exception as err:
+                        print('Out of bounds error start:')
+                        print((row, col))
+                        print(odlc_arr[row].shape)
+                        print(insert_point[0], insert_point[1])
+                        print(img_arr.shape)
+                        print(insert_point[0], img_arr[insert_point[0]].shape)
+                        raise err
+        cv.imshow('image'+odlc[-1], img_arr)
+        cv.waitKey(0)
+        cv.destroyAllWindows()
