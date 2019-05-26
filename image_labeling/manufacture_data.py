@@ -25,4 +25,8 @@ for img in empty_imgs:
     for odlc in added_odlcs:
         odlc_path = os.path.join(cwd, flu_odlcs_dir, odlc)
         odlc_arr = cv.imread(odlc_path)
-        top_left = random.randint(0, img_arr.shape[0]), random.randint(0, img_arr.shape[1])
+        top_left = random.randint(0, img_arr.shape[0]-odlc_arr.shape[0]), random.randint(0, img_arr.shape[1]-odlc_arr.shape[1])
+        for row in range(odlc_arr.shape[0]):
+            for col in range(odlc_arr.shape[1]):
+                if odlc_arr[row,col].sum() < (250,250,250).sum():
+                    img_arr[top_left+np.array((row, col))] = odlc_arr[row, col]
