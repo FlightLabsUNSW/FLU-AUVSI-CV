@@ -1,5 +1,6 @@
 from RealTimeProcess import real_time_process
 from Analysis import Analysis
+
 import multiprocessing as mp
 import cv2
 import pickle
@@ -31,16 +32,16 @@ def Manager:
 			# Get image and objects list from real time process
 			real_time_capture = parent_conn.recv()
 
-			# Gets telemetry and processes objects
+			# Gets new shape and person objects
 			new_shapes, new_people = self.process_capture(real_time_capture)
 
 			self.people += new_people
 
 			# Object analysis
-			for object_to_analyse in new_shapes:
+			for shape_to_analyse in new_shapes:
 				new_parent_conn, new_child_conn = mp.Pipe()
 
-				process = mp.Process(target=self.analyse_object, args=(new_child_conn, object_to_analyse,))
+				process = mp.Process(target=shape_to_analyse.run_analysis, args=(new_child_conn,))
 
 				job = {"process": process, "pipe": new_parent_conn}
 				
@@ -48,7 +49,7 @@ def Manager:
 					process.start()
 					running_jobs.append(job)
 				else:
-					jobs_queue.append()
+					jobs_queue.append(job)
 
 			# Poll analysis processes to see if they are done
 			for job in running_jobs:
@@ -58,7 +59,7 @@ def Manager:
 				if (len(analysed_shape) > 0):
 					self.shapes.append(analysed_shape)
 					
-					self.send_object_to_ground()
+					#self.send_object_to_ground()
 
 					if (len(jobs_queue) > 0):
 						job = jobs_queue.pop(0)
@@ -69,18 +70,6 @@ def Manager:
 	# Sends an object to the ground station in a JSON string
 	def send_object_to_ground(self, object_to_send):
 		pass
-
-	# Method to run in analysis process
-	def analyse_object(self, conn, object_to_analyse):
-		analysis = Analysis(object_to_analyse["image"])
-
-		object_to_analyse["shape"]                 = analysis.get_shape()
-		object_to_analyse["shape_colour"]          = analysis.get_shape_colour()
-		object_to_analyse["character"]             = analysis.get_character()
-		object_to_analyse["character_colour"]      = analysis.get_character_colour()
-		object_to_analyse["character_orientation"] = analysis.get_character_orientation()
-
-		conn.send(pickle.dumps(object_to_analyse))
 
 	# Checks if a shape has already been detected
 	def shape_exists(self, latitude, longitude):
@@ -333,13 +322,13 @@ class Shape(ODLC):
 	def run_analysis(self, conn):
 		analysis = Analysis(self.image)
 
-		object_to_analyse["shape"]                 = analysis.get_shape()
-		object_to_analyse["shape_colour"]          = analysis.get_shape_colour()
-		object_to_analyse["character"]             = analysis.get_character()
-		object_to_analyse["character_colour"]      = analysis.get_character_colour()
-		object_to_analyse["character_orientation"] = analysis.get_character_orientation()
+		self.type                  = analysis.get_shape()
+		self.shape_colour          = analysis.get_shape_colour()
+		self.character             = analysis.get_character()
+		self.character_colour      = analysis.get_character_colour()
+		self.character_orientation = analysis.get_character_orientation()
 
-		conn.send(pickle.dumps(object_to_analyse))
+		conn.send(self)
 
 	def get_dict_to_send(self):
 		json_string = ""
