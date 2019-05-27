@@ -6,12 +6,14 @@ import numpy as np
 
 DEBUG = False
 
+# Initial values
 empty_imgs_dir = 'empty_imgs'
 flu_odlcs_dir = 'flu_odlcs'
 cwd = os.getcwd()
 empty_imgs = os.listdir(os.path.join(cwd, empty_imgs_dir))
 flu_odlcs = os.listdir(os.path.join(cwd, flu_odlcs_dir))
 
+# Max number
 num_obj_in_img = 10
 
 # Modified imutils rotate_bound function
@@ -47,6 +49,7 @@ def rotate_bound(image, angle):
             borderValue=(255,255,255)
             )
 
+# Initialise the info about each odlc
 li = []
 for flu_shape in flu_odlcs:
     meta = flu_shape.split('_')
@@ -54,6 +57,14 @@ for flu_shape in flu_odlcs:
     meta.append(img_type)
     meta.append(flu_shape)
     li.append(meta)
+
+    odlc_path = os.path.join(cwd, flu_odlcs_dir, meta[-1])
+    odlc_arr = cv.imread(odlc_path)
+    cv.imshow(f"{meta[-1]}", odlc_arr)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
+
+
 flu_odlcs = li
 
 for img in empty_imgs:
@@ -102,4 +113,4 @@ for img in empty_imgs:
                         raise err
     cv.imshow('image '+img, img_arr)
     cv.waitKey(0)
-cv.destroyAllWindows()
+    cv.destroyAllWindows()
