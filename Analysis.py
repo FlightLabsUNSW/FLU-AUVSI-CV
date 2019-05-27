@@ -15,6 +15,7 @@ class Analysis:
 		pass
 
 	def get_character(self):
+		"""
 		def decode_predictions(scores, geometry):
 			# grab the number of rows and columns from the scores volume, then
 			# initialize our set of bounding box rectangles and corresponding
@@ -177,6 +178,8 @@ class Analysis:
 			# show the output image
 			cv2.imshow("Text Detection", output)
 			cv2.waitKey(0)
+		"""
+		pass
 
 	def get_character_colour(self):
 		pass
