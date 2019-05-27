@@ -3,11 +3,17 @@ from Analysis import Analysis
 import multiprocessing as mp
 import cv2
 import pickle
+import datetime
+
+SHAPE_THRESHOLD = 0.5
 
 def Manager:
 	def __init__(self):
+		self.id_generator = IDGenerator()
+
 		# List of seen objects
-		objects = []
+		self.shapes = []
+		self.people = []
 
 		# Real time process with pipe
 		parent_conn, child_conn = mp.Pipe()
@@ -26,17 +32,12 @@ def Manager:
 			real_time_capture = parent_conn.recv()
 
 			# Gets telemetry and processes objects
-			image = Image(real_time_capture)
+			new_shapes, new_people = self.process_capture(real_time_capture)
 
-			objects_to_analyse = []
-
-			# Get list of unseen objects
-			for image_object in image.objects:
-				if (not self.duplicate_exists(image_object)):
-					objects_to_analyse.append(image_object)
+			self.people += new_people
 
 			# Object analysis
-			for object_to_analyse in objects_to_analyse:
+			for object_to_analyse in new_shapes:
 				new_parent_conn, new_child_conn = mp.Pipe()
 
 				process = mp.Process(target=self.analyse_object, args=(new_child_conn, object_to_analyse,))
@@ -51,18 +52,19 @@ def Manager:
 
 			# Poll analysis processes to see if they are done
 			for job in running_jobs:
-				data = job["pipe"].recv()
+				analysed_shape = job["pipe"].recv()
 
 				# Check if process sent anything
-				if (len(data) > 0):
-					analysed_object = pickle.loads(data)
-
-					objects.append(analysed_object)
+				if (len(analysed_shape) > 0):
+					self.shapes.append(analysed_shape)
 					
 					self.send_object_to_ground()
 
 					if (len(jobs_queue) > 0):
 						job = jobs_queue.pop(0)
+
+						job["process"].start()
+						running_jobs.append(job)
 
 	# Sends an object to the ground station in a JSON string
 	def send_object_to_ground(self, object_to_send):
@@ -80,16 +82,26 @@ def Manager:
 
 		conn.send(pickle.dumps(object_to_analyse))
 
-	# Checks if an object has already been detected
-	def duplicate_exists(self, new_object):
-		for image_object in self.objects:
-			distance = self.haversine(image_object.latitude, image_object.longitude, new_object.latitude, new_object.longitude)
+	# Checks if a shape has already been detected
+	def shape_exists(self, latitude, longitude):
+		for shape in self.shapes:
+			distance = self.haversine(shape.latitude, shape.longitude, latitude, longitude)
 
 			if (distance < 5):
 				return True
 
 		return False
 	
+	# Checks if a person has already been detected
+	def person_exists(self, latitude, longitude):
+		for shape in self.person:
+			distance = self.haversine(shape.latitude, shape.longitude, latitude, longitude)
+
+			if (distance < 5):
+				return True
+
+		return False
+
 	# Gets distance between 2 coordinates
 	def haversine(self, lat1, long1, lat2, long2):
 	    lat1  = float(lat1)
@@ -109,32 +121,38 @@ def Manager:
 
 	    return distance
 
-
-def Image:
-	def __init_(self, real_time_capture):
+	def process_capture(self, real_time_capture):
+		snapshot_time       = datetime.datetime.now().time()
 		image               = real_time_capture["image"]
 		unprocessed_objects = real_time_capture["objects"]
 
 		# Get image details
 		height, width, channels = image.shape
-
-		self.image  = image
-		self.width  = width
-		self.height = height
-		self.fov    = 60
+		
+		# Field of view
+		fov = 60
 
 		# Get telemtry
-		self.latitude, self.longitude          = self.get_current_drone_coordinates()
-		self.drone_x_angle, self.drone_y_angle = self.get_current_drone_angle()
+		latitude, longitude          = self.get_current_drone_coordinates()
+		drone_x_angle, drone_y_angle = self.get_current_drone_angle()
 
-		self.drone_altitude = self.get_current_drone_altitude()
-		self.drone_bearing  = self.get_current_drone_bearing()
+		drone_altitude = self.get_current_drone_altitude()
+		drone_bearing  = self.get_current_drone_bearing()
 
-		# Process objects
-		self.objects = []
+		# Processed objects
+		shapes = []
+		people = []
 
 		for image_object in unprocessed_objects:
-			new_image_object = {} 
+			confidence = image_object["confidence"]
+			threshold  = SHAPE_THRESHOLD
+
+			bounding_box = {
+				"left":   image_object["left"]
+				"top":    image_object["top"]
+				"right":  image_object["right"]
+				"bottom": image_object["bottom"]
+			}
 
 			# Get image of just the object
 			crop_image = image[image_object["bottom"]:image_object["top"], image_object["left"]:image_object["right"]]
@@ -144,14 +162,32 @@ def Image:
 			y_pixel = int((image_object["bottom"] + image_object["top"]) / 2) 
 
 			# Get the coordinates of the object
-			latitude, longitude = get_object_coordinates(x_pixel, y_pixel)
-			
-			# Add processed object to the objects list
-			new_image_object["image"]     = crop_image
-			new_image_object["latitude"]  = latitude
-			new_image_object["longitude"] = longitude
+			latitude, longitude = self.get_object_coordinates(x_pixel, y_pixel)
 
-			self.objects.append(new_image_object)
+			drone_data = {
+				"x_angle":   drone_x_angle,
+				"y_angle":   drone_y_angle,
+				"latitude":  latitude,
+				"longitude": longitude,
+				"bearing":   drone_bearing,
+				"altitude":  drone_altitude
+			}
+
+			if (image_object["class"] == "shape"):
+				if (not self.shape_exists(latitude, longitude)):
+					id = self.id_generator.get_id()
+
+					new_shape = Shape(id, confidence, snapshot_time, crop_image, latitude, longitude, drone_data)
+					shapes.append(new_image_object)
+			elif (image_object["class"] == "person"):
+				if (not self.person_exists(latitude, longitude)):
+					id = self.id_generator.get_id()
+
+					new_person = Person(id, confidence, snapshot_time, crop_image, latitude, longitude, drone_data)
+					people.append(new_image_object)
+				people.append(new_image_object)
+
+		return shapes, people
 
 	def get_current_drone_angle(self):
 		x_angle = 0
@@ -219,6 +255,96 @@ def Image:
 		print("object_distance_to_drone: " + str(object_distance_to_drone) + "m\n")
 
 		return object_distance_to_drone
+
+class IDGenerator:
+	def __init__(self):
+		self.current_id = 0
+
+	def get_id(self):
+		self.current_id += 1
+		return self.current_id
+
+class ODLC:
+	def __init__(self, id, confidence, threshold, snapshot_time, image, drone_data):
+		self.id = id
+		self.confidence
+		self.threshold
+		self.snapshot_time
+		self.image = image
+		self.sent = False
+
+		self.drone_data = {
+			"x_angle": ,
+			"y_angle": ,
+			"latitude": ,
+			"longitude": ,
+			"bearing": ,
+			"altitude": 
+		}
+
+	@property
+	def image_data(self):
+		return image_data
+
+	@property
+	def drone_data(self):
+		return drone_data
+
+	@property
+	def accept_object(self):
+		pass
+
+	@property
+	def get_snapshot_time(self):
+		return self.snapshot_time
+
+	def detect_position(self):
+
+		return 
+
+	def get_dict_to_send(self):
+		pass
+
+	def set_threshold(self, threshold):
+		self.threshold = threshold
+
+class Person(ODLC):
+	def __init__(self):
+		super()
+
+	def get_dict_to_send(self):
+		json_string = ""
+
+		return json_string
+
+class Shape(ODLC):
+	def __init__(self, id, confidence, threshold, snapshot_time, image, drone_data):
+		super(id, id, confidence, threshold, snapshot_time, image, drone_data)
+
+	self.type
+	self.shape_colour
+	self.character
+	self.character_colour
+	self.character_orientation
+	self.is_off_axis
+	self.autonomous
+
+	# Method to run in analysis process
+	def run_analysis(self, conn):
+		analysis = Analysis(self.image)
+
+		object_to_analyse["shape"]                 = analysis.get_shape()
+		object_to_analyse["shape_colour"]          = analysis.get_shape_colour()
+		object_to_analyse["character"]             = analysis.get_character()
+		object_to_analyse["character_colour"]      = analysis.get_character_colour()
+		object_to_analyse["character_orientation"] = analysis.get_character_orientation()
+
+		conn.send(pickle.dumps(object_to_analyse))
+
+	def get_dict_to_send(self):
+		json_string = ""
+
+		return json_string
 
 if __name__ == "__main__":
 	manager = Manager()
