@@ -7,6 +7,9 @@ import datetime
 import json
 import shutil
 import math
+import os
+import zipfile
+import numpy as np
 
 SHAPE_THRESHOLD              = 0.5
 LOCATION_DUPLICATE_THRESHOLD = 5 # Metres
@@ -69,8 +72,10 @@ class Manager:
 					print(analysed_shape.longitude)
 
 					self.shapes.append(analysed_shape)
+
+					print(str(self.shapes))
 					
-					#self.send_object_to_ground()
+					self.send_object_to_ground(analysed_shape)
 
 					# If there is a job in the queue, start it
 					if (len(jobs_queue) > 0):
@@ -86,20 +91,11 @@ class Manager:
 
 		string = json.dumps(dictionary)
 
-		# Make directory for the object
-		os.makedirs(str(object_to_send.id))
+		ret, img_buff = cv2.imencode(".jpg", object_to_send.image)
 
-		# Write the image of the object to the directory
-		cv2.imwrite(str(object_to_send.id) + ".png", object_to_send.image)
-
-		# Write the json string of the object to the directory
-		file = open(str(object_to_send.id) + "/" + str(object_to_send.id), "w") 
-
-		file.write(string) 
-		file.close()
-
-		# Zip the directory
-		shutil.make_archive(str(object_to_send.id) + ".zip", 'zip', str(object_to_send.id))
+		with zipfile.ZipFile(str(object_to_send.id) + ".zip", "w") as myzip:
+			myzip.writestr(str(object_to_send.id) + ".json", string)
+			myzip.writestr(str(object_to_send.id) + ".png", img_buff)
 
 	# Checks if a shape has already been detected
 	def shape_exists(self, latitude, longitude):
@@ -213,7 +209,7 @@ class Manager:
 					# Make new shape and add it to the new shapes list
 					id = self.id_generator.get_id()
 
-					new_shape = Shape(id, confidence, threshold, snapshot_time, image, latitude, longitude)
+					new_shape = Shape(id, confidence, threshold, snapshot_time, crop_image, latitude, longitude)
 					shapes.append(new_shape)
 
 			elif (image_object["class"] == "person"):
@@ -224,7 +220,7 @@ class Manager:
 					# Make new person and add it to the new people list
 					id = self.id_generator.get_id()
 
-					new_person = Person(id, confidence, threshold, snapshot_time, image, latitude, longitude)
+					new_person = Person(id, confidence, threshold, snapshot_time, crop_image, latitude, longitude)
 					people.append(new_person)
 
 		return shapes, people
