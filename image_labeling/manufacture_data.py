@@ -3,6 +3,7 @@ import cv2 as cv
 #from imutils import rotate_bound
 import random
 import numpy as np
+import queue
 
 DEBUG = False
 
@@ -49,20 +50,37 @@ def rotate_bound(image, angle):
             borderValue=(255,255,255)
             )
 
+
 # Initialise the info about each odlc
 li = []
 for flu_shape in flu_odlcs:
-    meta = flu_shape.split('_')
-    meta[-1], img_type = meta[-1].split('.')
-    meta.append(img_type)
-    meta.append(flu_shape)
-    li.append(meta)
+    qu = queue.Queue()
+    def onMouse(event, x, y, flags, param):
+        if event == cv.EVENT_LBUTTONDOWN:
+           # draw circle here (etc...)
+           print('x = %d, y = %d'%(x, y))
+           qu.put((x,y), False)
+    cv.namedWindow(flu_shape)
+    cv.setMouseCallback(flu_shape, onMouse)
 
-    odlc_path = os.path.join(cwd, flu_odlcs_dir, meta[-1])
+    meta_list = flu_shape.split('_')
+    meta = {}
+    meta['alpha_num'] = meta_list[0]
+    meta['alpha_colour'] = meta_list[1]
+    meta['shape'] = meta_list[2]
+    meta['shape_colour'], meta['image_type'] = meta_list[-1].split('.')
+    meta['file_name'] = flu_shape
+
+    odlc_path = os.path.join(cwd, flu_odlcs_dir, meta['file_name'])
     odlc_arr = cv.imread(odlc_path)
-    cv.imshow(f"{meta[-1]}", odlc_arr)
+    cv.imshow(f"{meta['file_name']}", odlc_arr)
     cv.waitKey(0)
+    while not qu.empty():
+        meta['char_top_left'] = qu.get(False)
+        meta['char_bottom_right'] = qu.get(False)
     cv.destroyAllWindows()
+    print(meta)
+    li.append(meta)
 
 
 flu_odlcs = li
@@ -74,7 +92,7 @@ for img in empty_imgs:
     added_odlcs = random.sample(flu_odlcs, random.randint(0,num_obj_in_img))
     
     for odlc in added_odlcs:
-        odlc_path = os.path.join(cwd, flu_odlcs_dir, odlc[-1])
+        odlc_path = os.path.join(cwd, flu_odlcs_dir, odlc['file_name'])
 
         odlc_arr = cv.imread(odlc_path)
         if DEBUG: print(odlc_arr, odlc_arr.shape)
@@ -83,7 +101,7 @@ for img in empty_imgs:
         odlc_arr = rotate_bound(odlc_arr, random.randrange(-180,180))
 
         if DEBUG:
-            cv.imshow(odlc[-1], odlc_arr)
+            cv.imshow(odlc['file_name'], odlc_arr)
             cv.waitKey(0)
             cv.destroyAllWindows()
 
