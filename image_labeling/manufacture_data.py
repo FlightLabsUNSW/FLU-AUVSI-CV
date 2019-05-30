@@ -17,7 +17,7 @@ flu_odlcs = os.listdir(os.path.join(cwd, flu_odlcs_dir))
 
 # Max number
 num_obj_in_img = 10
-odlc_scale = 8
+odlc_scale = 6
 
 # Modified imutils rotate_bound function
 # Simply changing how the warpaffine function is called
@@ -75,7 +75,7 @@ for flu_shape in flu_odlcs:
 
     odlc_path = os.path.join(cwd, flu_odlcs_dir, meta['file_name'])
     odlc_arr = cv.imread(odlc_path)
-    cv.imshow(f"{meta['file_name']}", odlc_arr)
+    cv.imshow(meta['file_name'], odlc_arr)
     cv.waitKey(0)
     meta['icdar_text'] = {}
     while not qu.empty():
@@ -93,7 +93,7 @@ for flu_shape in flu_odlcs:
 
 flu_odlcs = li
 num_images = 0
-for img in empty_imgs[850:860]:
+for img in empty_imgs:
     num_images += 1
     print(num_images)
     print('going through', img)
@@ -163,6 +163,11 @@ for img in empty_imgs[850:860]:
             print(img_name+'.txt', ins_string, end='')
             img_file.write(ins_string)
     cv.imwrite(os.path.join(cwd, out_dir, img,), img_arr)
+    img_name = img.split('.')[0]
+    print('finishing inserting into', img_name+'.txt')
+    with open(os.path.join(cwd, out_dir, img_name + '.txt'), 'a') as img_file:
+        img_file.write('\n')
+
     if DEBUG:
         cv.imshow('image '+img, img_arr)
         cv.waitKey(0)
