@@ -4,10 +4,16 @@ import cv2 as cv
 import random
 import numpy as np
 import queue
+from enum import Enum
 
 DEBUG = False
 
+class Formatter(Enum):
+    yolo_dataset = 0
+    icdar_dataset = 1
+
 # Initial values
+data_format = Formatter.yolo_dataset
 empty_imgs_dir = 'empty_imgs'
 flu_odlcs_dir = 'flu_odlcs'
 out_dir = 'labeled_dataset'
@@ -53,6 +59,8 @@ def rotate_bound(image, angle):
             ), M, (nW, nH)
 
 
+
+
 # Initialise the info about each odlc
 li = []
 for flu_shape in flu_odlcs:
@@ -95,13 +103,14 @@ flu_odlcs = li
 num_images = 0
 for img in empty_imgs:
     num_images += 1
-    print(num_images)
-    print('going through', img)
+    if DEBUG:
+        print(num_images)
+        print('going through', img)
     img_path = os.path.join(cwd, empty_imgs_dir, img)
     img_arr = cv.imread(img_path)
 
     added_odlcs = random.sample(flu_odlcs, random.randint(0,num_obj_in_img))
-    print('Adding odls:', added_odlcs, 'to', img)
+    if DEBUG: print('Adding odls:', added_odlcs, 'to', img)
     for odlc in added_odlcs:
         odlc_path = os.path.join(cwd, flu_odlcs_dir, odlc['file_name'])
         curr_odlc_text_loc = odlc['icdar_text'].copy()
@@ -109,12 +118,12 @@ for img in empty_imgs:
         odlc_arr = cv.imread(odlc_path)
         if DEBUG: print(odlc_arr, odlc_arr.shape)
         scale = odlc_scale
-        print('resizing odlc')
+        if DEBUG: print('resizing odlc')
         odlc_arr = cv.resize(odlc_arr, tuple([int(odlc_arr.shape[0]/scale), int(odlc_arr.shape[1]/scale)]))
         for key,val in curr_odlc_text_loc.items():
             curr_odlc_text_loc[key] = int(val[0]/scale), int(val[1]/scale)
 
-        print('rotating odlc')
+        if DEBUG: print('rotating odlc')
         odlc_arr, rot_mat, res_size = rotate_bound(odlc_arr, random.randrange(-180,180))
 
 
@@ -135,7 +144,7 @@ for img in empty_imgs:
             print(odlc_arr.shape)
             print(top_left)
 
-        print('putting odlc into image')
+        if DEBUG: print('putting odlc into image')
         for col in range(odlc_arr.shape[1]): 
             for row in range(odlc_arr.shape[0]):
                 if np.array(odlc_arr[row,col]).sum() < np.array((240,240,240)).sum():
@@ -154,19 +163,29 @@ for img in empty_imgs:
                         raise err
 
         img_name = img.split('.')[0]
-        print('inserting into', img_name+'.txt')
+        if DEBUG: print('inserting into', img_name+'.txt')
         with open(os.path.join(cwd, out_dir, img_name + '.txt'), 'a') as img_file:
             ins_string = str()
-            for key,val in curr_odlc_text_loc.items():
-                ins_string += str(val[0]) + ',' + str(val[1]) + ','
-            ins_string += odlc['alpha_num'] + '\n'
-            print(img_name+'.txt', ins_string, end='')
+
+            if data_format == formater.yolo_dataset:
+                ins_string += odlc['class_id']
+                for key,val in curr_odlc_text_loc.items():
+                    ins_string += str(val[0]) + ',' + str(val[1]) + ','
+                ins_string += '\n'
+                if DEBUG: print(img_name+'.txt', ins_string, end='')
+                
+            elif data_format == formater.icdar_dataset:
+                for key,val in curr_odlc_text_loc.items():
+                    ins_string += str(val[0]) + ',' + str(val[1]) + ','
+                ins_string += odlc['alpha_num'] + '\n'
+                if DEBUG: print(img_name+'.txt', ins_string, end='')
+
             img_file.write(ins_string)
     cv.imwrite(os.path.join(cwd, out_dir, img,), img_arr)
     img_name = img.split('.')[0]
-    print('finishing inserting into', img_name+'.txt')
+    if DEBUG: print('finishing inserting into', img_name+'.txt')
     with open(os.path.join(cwd, out_dir, img_name + '.txt'), 'a') as img_file:
-        img_file.write('\n')
+        img_file.write('')
 
     if DEBUG:
         cv.imshow('image '+img, img_arr)
