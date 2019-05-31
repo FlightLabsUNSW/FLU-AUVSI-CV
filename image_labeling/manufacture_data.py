@@ -155,7 +155,7 @@ for img in empty_imgs:
 
         img_name = img.split('.')[0]
         print('inserting into', img_name+'.txt')
-        with open(os.path.join(cwd, out_dir, img_name + '.txt'), 'a') as img_file:
+        with open(os.path.join(cwd, out_dir, 'gt_' + img_name + '.txt'), 'a') as img_file:
             ins_string = str()
             for key,val in curr_odlc_text_loc.items():
                 ins_string += str(val[0]) + ',' + str(val[1]) + ','
@@ -165,8 +165,8 @@ for img in empty_imgs:
     cv.imwrite(os.path.join(cwd, out_dir, img,), img_arr)
     img_name = img.split('.')[0]
     print('finishing inserting into', img_name+'.txt')
-    with open(os.path.join(cwd, out_dir, img_name + '.txt'), 'a') as img_file:
-        img_file.write('\n')
+    with open(os.path.join(cwd, out_dir, 'gt_' + img_name + '.txt'), 'a') as img_file:
+        img_file.write('')
 
     if DEBUG:
         cv.imshow('image '+img, img_arr)
