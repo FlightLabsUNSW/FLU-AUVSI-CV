@@ -13,7 +13,7 @@ import zipfile
 import numpy as np
 
 SHAPE_THRESHOLD              = 0.5
-LOCATION_DUPLICATE_THRESHOLD = 5 # Metres
+LOCATION_DUPLICATE_THRESHOLD = 1 # Metres
 
 class Manager:
 	def __init__(self):
@@ -23,6 +23,8 @@ class Manager:
 		self.shapes = []
 		self.people = []
 
+		self.shapes_queue = []
+
 		# Real time process with pipe
 		parent_conn, child_conn = mp.Pipe()
 
@@ -30,8 +32,8 @@ class Manager:
 		rtp.start()
 
 		# Analysis process pool and queue
-		running_jobs = []
-		jobs_queue   = []
+		self.running_jobs = []
+		self.jobs_queue   = []
 
 		# Main loop
 		while True:
@@ -46,6 +48,9 @@ class Manager:
 
 				self.people += new_people
 
+				for person in new_people:
+					print(person.get_dict_to_send())
+
 				# Object analysis
 				for shape_to_analyse in new_shapes:
 
@@ -54,36 +59,41 @@ class Manager:
 
 					process = mp.Process(target=shape_to_analyse.run_analysis, args=(new_child_conn,))
 
-					job = {"process": process, "pipe": new_parent_conn}
+					job = {"process": process, "pipe": new_parent_conn, "shape": shape_to_analyse}
 					
 					# If there is a free process start it, or else put it in the queue
-					if (len(running_jobs) < 3):
+					if (len(self.running_jobs) < 3):
 						process.start()
-						running_jobs.append(job)
+						self.running_jobs.append(job)
 					else:
-						jobs_queue.append(job)
+						self.jobs_queue.append(job)
+
+			unfinished_jobs = []
 
 			# Poll analysis processes to see if they are done
-			for job in running_jobs:
+			for job in self.running_jobs:
 
 				# Check if shape is analysed
 				if (job["pipe"].poll()):
 					analysed_shape = job["pipe"].recv()
-
-					print(analysed_shape.longitude)
-
 					self.shapes.append(analysed_shape)
-
-					print(str(self.shapes))
 					
+					print("Object ID: " + str(analysed_shape.id) + " " + str(analysed_shape.get_dict_to_send()))
 					#self.send_object_to_ground(analysed_shape)
 
 					# If there is a job in the queue, start it
-					if (len(jobs_queue) > 0):
-						job = jobs_queue.pop(0)
+					if (len(self.jobs_queue) > 0):
+						new_job = self.jobs_queue.pop(0)
 
-						job["process"].start()
-						running_jobs.append(job)
+						new_job["process"].start()
+						unfinished_jobs.append(job)
+				else:
+					unfinished_jobs.append(job)
+
+			self.running_jobs = unfinished_jobs
+
+			#print("running " + str(len(self.running_jobs)))
+			#print("queue "   + str(len(self.jobs_queue)))
 
 	# Makes a zip folder containing a json string file and image of the object
 	def send_object_to_ground(self, object_to_send):
@@ -99,26 +109,30 @@ class Manager:
 			myzip.writestr(str(object_to_send.id) + ".png", img_buff)
 
 	# Checks if a shape has already been detected
-	def shape_exists(self, latitude, longitude):
+	def get_shape(self, latitude, longitude):
 		for shape in self.shapes:
-
-			print(shape.longitude)
 			distance = self.haversine(shape.latitude, shape.longitude, latitude, longitude)
 
 			if (distance < LOCATION_DUPLICATE_THRESHOLD):
-				return True
+				return True, shape
 
-		return False
-	
-	# Checks if a person has already been detected
-	def person_exists(self, latitude, longitude):
+		for job in self.running_jobs + self.jobs_queue:
+			distance = self.haversine(job["shape"].latitude, job["shape"].longitude, latitude, longitude)
+
+			if (distance < LOCATION_DUPLICATE_THRESHOLD):
+				self.shapes_queue.append(job["shape"])
+
+		return False, None
+
+	# Checks if a shape has already been detected
+	def get_person(self, latitude, longitude):
 		for person in self.people:
 			distance = self.haversine(person.latitude, person.longitude, latitude, longitude)
 
 			if (distance < LOCATION_DUPLICATE_THRESHOLD):
-				return True
+				return True, person
 
-		return False
+		return False, None
 
 	# Gets distance between 2 coordinates
 	def haversine(self, lat1, long1, lat2, long2):
@@ -135,7 +149,7 @@ class Manager:
 	    a = pow(math.sin(d_lat / 2), 2) + math.cos(lat1 * degree_to_rad) * math.cos(lat2 * degree_to_rad) * pow(math.sin(d_long / 2), 2)
 	    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 	    
-	    distance = (6367 * c) / 1000
+	    distance = (6367 * c) * 1000
 
 	    return distance
 
@@ -189,7 +203,7 @@ class Manager:
 			}
 
 			# Get the coordinates of the object
-			latitude, longitude = self.get_object_coordinates(object_pixel, fov, width, height, drone_angle, drone_latitude, drone_longitude, drone_altitude, drone_bearing)
+			latitude, longitude, distance_to_drone = self.get_object_coordinates(object_pixel, fov, width, height, drone_angle, drone_latitude, drone_longitude, drone_altitude, drone_bearing)
 
 			# Not currently used!!!
 			drone_data = {
@@ -204,24 +218,35 @@ class Manager:
 			# Check what class of object it is
 			if (image_object["class"] == "shape"):
 
-				# Check if shape exists
-				if (not self.shape_exists(latitude, longitude)):
-					
-					# Make new shape and add it to the new shapes list
-					id = self.id_generator.get_id()
+				shape_detected, shape = self.get_shape(latitude, longitude)
 
-					new_shape = Shape(id, confidence, threshold, snapshot_time, crop_image, latitude, longitude)
+				# Check if shape exists
+				if (shape_detected):
+					shape.add_new_object(confidence, snapshot_time, crop_image, latitude, longitude, distance_to_drone)
+
+					shapes.append(shape)
+				else:
+					# Make new shape and add it to the new shapes list
+					id        = self.id_generator.get_id()
+					new_shape = Shape(id, confidence, snapshot_time, crop_image, latitude, longitude, distance_to_drone, threshold)
+
 					shapes.append(new_shape)
 
 			elif (image_object["class"] == "person"):
 
-				# Check if person exists
-				if (not self.person_exists(latitude, longitude)):
-					
-					# Make new person and add it to the new people list
-					id = self.id_generator.get_id()
+				person_detected, person = self.get_person(latitude, longitude)
 
-					new_person = Person(id, confidence, threshold, snapshot_time, crop_image, latitude, longitude)
+				# Check if person exists
+				if (person_detected):
+					
+					person.add_new_object(confidence, snapshot_time, crop_image, latitude, longitude, distance_to_drone)
+
+					people.append(person)
+				else:
+					# Make new shape and add it to the new shapes list
+					id         = self.id_generator.get_id()
+					new_person = Person(id, confidence, snapshot_time, crop_image, latitude, longitude, distance_to_drone, threshold)
+
 					people.append(new_person)
 
 		return shapes, people
@@ -259,7 +284,7 @@ class Manager:
 
 		object_bearing = math.atan2(det, dot)
 
-		print("2D Object Ground Distance: " + str(distance))
+		#print("2D Object Ground Distance: " + str(distance))
 
 		R       = 6378.1 # Radius of the Earth
 		bearing = math.radians(drone_bearing) + object_bearing # Bearing converted to radians
@@ -271,7 +296,7 @@ class Manager:
 		latitude  = math.asin(math.sin(drone_latitude_radians) * math.cos(d / R) + math.cos(drone_latitude_radians) * math.sin(d / R) * math.cos(bearing))
 		longitude = drone_longitude_radians + math.atan2(math.sin(bearing) * math.sin(d / R) * math.cos(drone_latitude_radians), math.cos(d / R) - math.sin(drone_latitude_radians) * math.sin(drone_latitude_radians))
 
-		return math.degrees(latitude), math.degrees(longitude)
+		return math.degrees(latitude), math.degrees(longitude), distance
 
 	def get_1D_object_distance(self, fov, object_pixel, length, drone_angle, drone_altitude):
 		#print("1 Dimension Distance")

@@ -9,10 +9,10 @@ class Analysis:
 		self.image = image
 
 	def get_shape(self):
-		pass
+		return "rectangle"
 
 	def get_shape_colour(self):
-		pass
+		return "red"
 
 	def get_character(self):
 		"""
@@ -179,10 +179,10 @@ class Analysis:
 			cv2.imshow("Text Detection", output)
 			cv2.waitKey(0)
 		"""
-		pass
+		return "H"
 
 	def get_character_colour(self):
-		pass
+		return "blue"
 
 	def get_character_orientation(self):
-		pass
+		return 90
