@@ -48,6 +48,9 @@ class Manager:
 
 				self.people += new_people
 
+				for person in new_people:
+					print(person.get_dict_to_send())
+
 				# Object analysis
 				for shape_to_analyse in new_shapes:
 
@@ -106,22 +109,6 @@ class Manager:
 			myzip.writestr(str(object_to_send.id) + ".png", img_buff)
 
 	# Checks if a shape has already been detected
-	def shape_exists(self, latitude, longitude):
-		for shape in self.shapes:
-			distance = self.haversine(shape.latitude, shape.longitude, latitude, longitude)
-
-			if (distance < LOCATION_DUPLICATE_THRESHOLD):
-				return True
-
-		for job in self.running_jobs + self.jobs_queue:
-			distance = self.haversine(job["shape"].latitude, job["shape"].longitude, latitude, longitude)
-
-			if (distance < LOCATION_DUPLICATE_THRESHOLD):
-				return True
-
-		return False
-
-	# Checks if a shape has already been detected
 	def get_shape(self, latitude, longitude):
 		for shape in self.shapes:
 			distance = self.haversine(shape.latitude, shape.longitude, latitude, longitude)
@@ -136,16 +123,16 @@ class Manager:
 				self.shapes_queue.append(job["shape"])
 
 		return False, None
-	
-	# Checks if a person has already been detected
-	def person_exists(self, latitude, longitude):
+
+	# Checks if a shape has already been detected
+	def get_person(self, latitude, longitude):
 		for person in self.people:
 			distance = self.haversine(person.latitude, person.longitude, latitude, longitude)
 
 			if (distance < LOCATION_DUPLICATE_THRESHOLD):
-				return True
+				return True, person
 
-		return False
+		return False, None
 
 	# Gets distance between 2 coordinates
 	def haversine(self, lat1, long1, lat2, long2):
@@ -247,13 +234,19 @@ class Manager:
 
 			elif (image_object["class"] == "person"):
 
-				# Check if person exists
-				if (not self.person_exists(latitude, longitude)):
-					
-					# Make new person and add it to the new people list
-					id = self.id_generator.get_id()
+				person_detected, person = self.get_person(latitude, longitude)
 
-					new_person = Person(id, confidence, threshold, snapshot_time, crop_image, latitude, longitude)
+				# Check if person exists
+				if (person_detected):
+					
+					person.add_new_object(confidence, snapshot_time, crop_image, latitude, longitude, distance_to_drone)
+
+					people.append(person)
+				else:
+					# Make new shape and add it to the new shapes list
+					id         = self.id_generator.get_id()
+					new_person = Person(id, confidence, snapshot_time, crop_image, latitude, longitude, distance_to_drone, threshold)
+
 					people.append(new_person)
 
 		return shapes, people

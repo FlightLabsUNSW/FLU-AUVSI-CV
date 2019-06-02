@@ -18,7 +18,7 @@ def real_time_process(conn):
 		capture = {
 			"image": image,
 			"objects": [
-				{ "class": "shape", "confidence": 0.9, "left": 400, "top": 500, "right": 500, "bottom": 400 }
+				{ "class": "person", "confidence": 0.9, "left": 400, "top": 500, "right": 500, "bottom": 400 }
 			]
 		}
 

@@ -193,12 +193,13 @@ class Shape(ODLC):
 		return dictionary
 
 class Person(ODLC):
-	def __init__(self, id, initial_confidence, initial_image, initial_image_distance, threshold):
-		super().__init__(id, initial_confidence, initial_image, initial_image_distance, threshold, False)
+	def __init__(self, id, initial_confidence, initial_snapshot_time, initial_image, initial_latitude, initial_longitude, initial_image_distance, threshold):
+		super().__init__(id, initial_confidence, initial_image, initial_latitude, initial_longitude, initial_image_distance, threshold, False)
 
 	def get_dict_to_send(self):
 		dictionary = {
 			"id":         self.id,
+			"type":       "person",
 			"latitude":   self.latitude,
 			"longitude":  self.longitude,
 			"autonomous": False
