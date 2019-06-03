@@ -39,38 +39,88 @@ def draw_quarter_circle(bg_img, colour):
     cv.circle(bg_img, centre, radius, colour, cv.FILLED)
 
 def draw_triangle(bg_img, colour):
-    pass
+    pad_y = (1/2-(1/4)*3**(1/2))*bg_img.shape[1]
+    p1 = (int(bg_img.shape[0]/2), pad_y)
+    p2 = (bg_img.shape[0], bg_img.shape[1]-pad_y)
+    p3 = (0, bg_img.shape[1]-pad_y)
+    pts_in = np.array([[p1,p2,p3]], dtype=np.int32)
+    cv.polylines(bg_img, pts=pts_in, isClosed=False, color=colour)
+    cv.fillPoly(bg_img, pts=pts_in, color=colour)
 
 def draw_square(bg_img, colour):
     centre = (int(bg_img.shape[0]/2), int(bg_img.shape[1]/2))
     cv.rectangle(bg_img, (0,0), bg_img.shape[:2], colour, cv.FILLED)
 
 def draw_rectangle(bg_img, colour):
-    centre = (int(bg_img.shape[0]/2), int(bg_img.shape[1]/2))
     top_left = (0, int(bg_img.shape[1]/4))
     bottom_right = (bg_img.shape[0], int(3*bg_img.shape[1]/4))
     cv.rectangle(bg_img, top_left, bottom_right, colour, cv.FILLED)
 
 def draw_trapezoid(bg_img, colour):
-    pass
+    top_left = (int(bg_img.shape[0]/4), int(bg_img.shape[1]/4))
+    top_right = (int(3*bg_img.shape[0]/4), bg_img.shape[1]/4)
+    bottom_right = (bg_img.shape[0], int(3*bg_img.shape[1]/4))
+    bottom_left = (0, int(3*bg_img.shape[1]/4))
+    pts_in = np.array([[top_left,top_right,bottom_right,bottom_left]], dtype=np.int32)
+    cv.polylines(bg_img, pts=pts_in, isClosed=False, color=colour)
+    cv.fillPoly(bg_img, pts=pts_in, color=colour)
+
 
 def draw_pentagon(bg_img, colour):
-    pass
+    p1 = 225,0
+    p2 = 11,155
+    p3 = 93,407
+    p4 = 357,407
+    p5 = 439,155
+    pts_in = np.array([[p1,p2,p3,p4,p5]], dtype=np.int32)
+    cv.polylines(bg_img, pts=pts_in, isClosed=False, color=colour)
+    cv.fillPoly(bg_img, pts=pts_in, color=colour)
+    
 
 def draw_hexagon(bg_img, colour):
-    pass
+    p1 = 225,0
+    p2 = 30,112
+    p3 = 30,337
+    p4 = 225,450
+    p5 = 420,338
+    p6 = 420,113
+    pts_in = np.array([[p1,p2,p3,p4,p5,p6]], dtype=np.int32)
+    cv.polylines(bg_img, pts=pts_in, isClosed=False, color=colour)
+    cv.fillPoly(bg_img, pts=pts_in, color=colour)
 
 def draw_heptagon(bg_img, colour):
-    pass
+    p1 = 225,0
+    p2 = 49,85
+    p3 = 6,275
+    p4 = 127,428
+    p5 = 323,428
+    p6 = 444,275
+    p7 = 401,85
+    pts_in = np.array([[p1,p2,p3,p4,p5,p6,p7]], dtype=np.int32)
+    cv.polylines(bg_img, pts=pts_in, isClosed=False, color=colour)
+    cv.fillPoly(bg_img, pts=pts_in, color=colour)
 
 def draw_octagon(bg_img, colour):
-    pass
+    p1 = 225,0
+    p2 = 66,66
+    p3 = 0,225
+    p4 = 66,384
+    p5 = 225,450
+    p6 = 384,384
+    p7 = 450,225
+    p8 = 384,66
+    pts_in = np.array([[p1,p2,p3,p4,p5,p6,p7,p8]], dtype=np.int32)
+    cv.polylines(bg_img, pts=pts_in, isClosed=False, color=colour)
+    cv.fillPoly(bg_img, pts=pts_in, color=colour)
 
 def draw_star(bg_img, colour):
     pass
 
 def draw_cross(bg_img, colour):
-    pass
+    vert_top_left = (int(bg_img.shape[0]/4), 0)
+    vert_bottom_right = (int(3*bg_img.shape[0]/4), bg_img.shape[1])
+    cv.rectangle(bg_img, vert_top_left, vert_bottom_right, colour, cv.FILLED)
+
 
 possible_shapes = [
     draw_circle,
@@ -90,9 +140,9 @@ possible_shapes = [
 
 
 shape_img = np.ones((450,450,4), np.uint8)*255
-draw_quarter_circle(shape_img, (0,0,0))
 print(shape_img.shape)
 print(shape_img[225,225])
+draw_cross(shape_img, (0,0,0))
 cv.imshow('img', shape_img)
 cv.waitKey(0)
 cv.destroyAllWindows()
