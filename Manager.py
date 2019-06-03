@@ -6,23 +6,28 @@ import multiprocessing as mp
 import cv2
 import datetime
 import json
-import shutil
 import math
 import os
 import zipfile
 import numpy as np
 
-SHAPE_THRESHOLD              = 0.5
-LOCATION_DUPLICATE_THRESHOLD = 1 # Metres
+#import rospy
+#from sensor_msgs import msg
+
+SHAPE_THRESHOLD              = 0.5 
+LOCATION_DUPLICATE_THRESHOLD = 1   # Metres
 
 class Manager:
 	def __init__(self):
+
+		# ID generator to give unique ID to each object
 		self.id_generator = IDGenerator()
 
 		# List of seen objects
 		self.shapes = []
 		self.people = []
 
+		# List of new unanalysed shapes with ODLC classes in the analysis pool
 		self.shapes_queue = []
 
 		# Real time process with pipe
@@ -33,7 +38,7 @@ class Manager:
 
 		# Analysis process pool and queue
 		self.running_jobs = []
-		self.jobs_queue   = []
+		self.shapes_to_analyse_queue   = []
 
 		# Main loop
 		while True:
@@ -46,27 +51,33 @@ class Manager:
 				# Gets new shape and person objects
 				new_shapes, new_people = self.process_capture(real_time_capture)
 
+				# Add new people to the seen people list
 				self.people += new_people
 
+				# Printing new people objects for testing
 				for person in new_people:
-					print(person.get_dict_to_send())
+					print("Object ID: " + str(person.id) + " " + str(person.get_dict_to_send()))
 
 				# Object analysis
 				for shape_to_analyse in new_shapes:
-
-					# Create new pipe and process for the unprocessed shape
-					new_parent_conn, new_child_conn = mp.Pipe()
-
-					process = mp.Process(target=shape_to_analyse.run_analysis, args=(new_child_conn,))
-
-					job = {"process": process, "pipe": new_parent_conn, "shape": shape_to_analyse}
 					
 					# If there is a free process start it, or else put it in the queue
 					if (len(self.running_jobs) < 3):
+						# Create new pipe and process for the unprocessed shape
+						new_parent_conn, new_child_conn = mp.Pipe()
+
+						process = mp.Process(target=shape_to_analyse.run_analysis, args=(new_child_conn,))
+
+						job = {
+							"process": process,
+							"pipe":    new_parent_conn,
+							"shape":   shape_to_analyse
+						}
+
 						process.start()
 						self.running_jobs.append(job)
 					else:
-						self.jobs_queue.append(job)
+						self.shapes_to_analyse_queue.append(job)
 
 			unfinished_jobs = []
 
@@ -82,18 +93,28 @@ class Manager:
 					#self.send_object_to_ground(analysed_shape)
 
 					# If there is a job in the queue, start it
-					if (len(self.jobs_queue) > 0):
-						new_job = self.jobs_queue.pop(0)
+					if (len(self.shapes_to_analyse_queue) > 0):
+						shape_to_analyse = self.shapes_to_analyse_queue.pop(0)
 
-						new_job["process"].start()
+						new_parent_conn, new_child_conn = mp.Pipe()
+
+						process = mp.Process(target=shape_to_analyse.run_analysis, args=(new_child_conn,))
+
+						job = {
+							"process": process,
+							"pipe":    new_parent_conn,
+							"shape":   shape_to_analyse
+						}
+
+						process.start()
 						unfinished_jobs.append(job)
 				else:
 					unfinished_jobs.append(job)
 
 			self.running_jobs = unfinished_jobs
 
-			#print("running " + str(len(self.running_jobs)))
-			#print("queue "   + str(len(self.jobs_queue)))
+			print("num shapes: " + str(len(self.shapes)))
+			print("num people" + str(len(self.people)))
 
 	# Makes a zip folder containing a json string file and image of the object
 	def send_object_to_ground(self, object_to_send):
@@ -110,19 +131,26 @@ class Manager:
 
 	# Checks if a shape has already been detected
 	def get_shape(self, latitude, longitude):
-		for shape in self.shapes:
+		for index, shape in enumerate(self.shapes):
 			distance = self.haversine(shape.latitude, shape.longitude, latitude, longitude)
 
 			if (distance < LOCATION_DUPLICATE_THRESHOLD):
-				return True, shape
+				del self.shapes[index]
+				return "analysed", shape
 
-		for job in self.running_jobs + self.jobs_queue:
+		for shape in self.shapes_to_analyse_queue:
+			distance = self.haversine(shape.latitude, shape.longitude, latitude, longitude)
+
+			if (distance < LOCATION_DUPLICATE_THRESHOLD):
+				return "queued", shape
+
+		for job in self.running_jobs:
 			distance = self.haversine(job["shape"].latitude, job["shape"].longitude, latitude, longitude)
 
 			if (distance < LOCATION_DUPLICATE_THRESHOLD):
-				self.shapes_queue.append(job["shape"])
+				return "running", job["shape"] # self.shapes_queue.append(job["shape"])
 
-		return False, None
+		return None, None
 
 	# Checks if a shape has already been detected
 	def get_person(self, latitude, longitude):
@@ -221,10 +249,24 @@ class Manager:
 				shape_detected, shape = self.get_shape(latitude, longitude)
 
 				# Check if shape exists
-				if (shape_detected):
+				if   (shape_detected == "analysed"):
 					shape.add_new_object(confidence, snapshot_time, crop_image, latitude, longitude, distance_to_drone)
 
 					shapes.append(shape)
+
+				elif (shape_detected == "queued"):
+					shape.add_new_object(confidence, snapshot_time, crop_image, latitude, longitude, distance_to_drone)
+				
+				elif (shape_detected == "running"):
+					image_object["latitude"]          = latitude
+					image_object["longitude"]         = longitude
+					image_object["image"]             = crop_image
+					image_object["snapshot_time"]     = snapshot_time
+					image_object["confidence"]        = confidence
+					image_object["distance_to_drone"] = distance_to_drone
+
+					#self.queue_shapes.append(image_object)
+
 				else:
 					# Make new shape and add it to the new shapes list
 					id        = self.id_generator.get_id()
