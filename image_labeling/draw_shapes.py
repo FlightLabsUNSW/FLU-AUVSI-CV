@@ -120,6 +120,9 @@ def draw_cross(bg_img, colour):
     vert_top_left = (int(bg_img.shape[0]/4), 0)
     vert_bottom_right = (int(3*bg_img.shape[0]/4), bg_img.shape[1])
     cv.rectangle(bg_img, vert_top_left, vert_bottom_right, colour, cv.FILLED)
+    hori_top_left = (0, int(bg_img.shape[1]/4))
+    hori_bottom_right = (bg_img.shape[0], int(3*bg_img.shape[1]/4))
+    cv.rectangle(bg_img, hori_top_left, hori_bottom_right, colour, cv.FILLED)
 
 
 possible_shapes = [
