@@ -2,6 +2,7 @@
 import cv2 as cv
 import numpy as np
 import os
+import json
 
 colour_defs = {
     'white':(255,255,255),
@@ -12,8 +13,8 @@ colour_defs = {
     'green':(0,255,0),
     'yellow':(0,245,245),
     'purple':(125,0,125),
-    'brown':(0,0,0),
-    'orange':(0,0,0)
+    'brown':(165,42,42),
+    'orange':(255,165,0)
     }
 
 possible_chars = [
@@ -196,6 +197,9 @@ def draw_alphanum(bg_img, colour, letter):
     textY = int((bg_img.shape[0] + font_size[1]) / 2)
     
     cv.putText(bg_img, letter, (textX, textY), font, font_scale, colour, thickness)
+    bottom_left = (textX, textY)
+    top_right = (textX+font_size[0], textY-font_size[1])
+    return (*bottom_left, *top_right)
 
 possible_shapes = {
     'circle':draw_circle,
@@ -214,13 +218,45 @@ possible_shapes = {
     }
 
 
-ex_shape_colour = colour_defs['red']
-ex_letter_colour = colour_defs['black']
-print(possible_shapes)
-shape_img = np.ones((450,450,4), np.uint8)*255
-draw_quarter_circle(shape_img, ex_shape_colour)
-draw_alphanum(shape_img,ex_letter_colour, 'A')
-cv.imshow('img', shape_img)
-cv.waitKey(0)
+out_dir = 'flu_odlcs'
+out_path = os.path.join(os.getcwd(), out_dir)
+img_num = 0
+for shape, func in possible_shapes.items():
+    for alpha_i, alphanum in enumerate(possible_chars):
+        for colour_name1, shape_colour in colour_defs.items():
+            for colour_name2, letter_colour in colour_defs.items():
+                if colour_name1 != colour_name2:
+                    shape_img = np.ones((450,450,4), np.uint8)*255
+                    func(shape_img, shape_colour)
+                    alpha_pos = draw_alphanum(shape_img,letter_colour, alphanum)
+                    meta_dict = {
+                            'alpha_num':alphanum,
+                            'class_id':alpha_i,
+                            'alpha_colour':colour_name2,
+                            'shape':shape,
+                            'shape_colour':colour_name1,
+                            'icdar_text':{
+                                'xy1':(alpha_pos[0],alpha_pos[3]),
+                                'xy2':(alpha_pos[2],alpha_pos[3]),
+                                'xy3':(alpha_pos[0],alpha_pos[1]),
+                                'xy4':(alpha_pos[2],alpha_pos[1])
+                                },
+                            'yolo_spot':{
+                                'x_center':shape_img.shape[0]/2,
+                                'y_center':shape_img.shape[1]/2,
+                                'width':shape_img.shape[0],
+                                'height':shape_img.shape[1]
+                                }
+                            }
+                    for key,val in meta_dict['icdar_text'].items():
+                        cv.drawMarker(shape_img, val, colour_defs['white'])
+                    cv.imshow('img', shape_img)
+                    cv.waitKey(0)
+                    cv.imwrite(os.path.join(out_path, str(img_num)+'.png'), shape_img)
+                    file_path = os.path.join(out_path, str(img_num)+'.txt')
+                    with open(file_path, 'w') as meta_file:
+                        json.dump(meta_dict, meta_file)
+                        meta_file.write('\n')
+                    img_num += 1
 cv.destroyAllWindows()
 
