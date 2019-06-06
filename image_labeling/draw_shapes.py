@@ -190,7 +190,10 @@ def draw_alphanum(bg_img, colour, letter):
     font = cv.FONT_HERSHEY_DUPLEX
     thickness = 10
     pixel_size = (int(bg_img.shape[0]/4), int(bg_img.shape[1]/4))
-    font_scale = cv.getFontScaleFromHeight(font, pixel_size[1], thickness)
+    try:
+        font_scale = cv.getFontScaleFromHeight(font, pixel_size[1], thickness)
+    except AttributeError as err:
+        font_scale = 5.071428571428571
 
     font_size, ret = cv.getTextSize(letter, font, font_scale, thickness)
     textX = int((bg_img.shape[1] - font_size[0]) / 2)
@@ -258,7 +261,6 @@ for shape, func in possible_shapes.items():
                     file_path = os.path.join(out_path, str(img_num)+'.txt')
                     with open(file_path, 'w') as meta_file:
                         json.dump(meta_dict, meta_file)
-                        meta_file.write('\n')
                     img_num += 1
 #cv.destroyAllWindows()
 
