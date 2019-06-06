@@ -221,46 +221,50 @@ possible_shapes = {
     }
 
 
-out_dir = 'flu_odlcs'
-out_path = os.path.join(os.getcwd(), out_dir)
-img_num = 0
-for shape, func in possible_shapes.items():
-    for alpha_i, alphanum in enumerate(possible_chars):
-        for colour_name1, shape_colour in colour_defs.items():
-            for colour_name2, letter_colour in colour_defs.items():
-                if colour_name1 != colour_name2:
-                    shape_img = np.ones((450,450,4), np.uint8)*255
-                    func(shape_img, shape_colour)
-                    alpha_pos = draw_alphanum(shape_img,letter_colour, alphanum)
-                    meta_dict = {
-                            'alpha_num':alphanum,
-                            'class_id':alpha_i,
-                            'alpha_colour':colour_name2,
-                            'shape':shape,
-                            'shape_colour':colour_name1,
-                            'icdar_text':{
-                                'xy1':(alpha_pos[0],alpha_pos[3]),
-                                'xy2':(alpha_pos[2],alpha_pos[3]),
-                                'xy3':(alpha_pos[0],alpha_pos[1]),
-                                'xy4':(alpha_pos[2],alpha_pos[1])
-                                },
-                            'yolo_spot':{
-                                'x_center':shape_img.shape[0]/2,
-                                'y_center':shape_img.shape[1]/2,
-                                'width':shape_img.shape[0],
-                                'height':shape_img.shape[1]
-                                }
-                            }
-                    #for key,val in meta_dict['icdar_text'].items():
-                    #    cv.drawMarker(shape_img, val, colour_defs['white'])
-                    #cv.imshow('img', shape_img)
-                    #cv.waitKey(0)
-                    #invert alpha channel
-                    shape_img[:,:,-1] = -shape_img[:,:,-1]+255
-                    cv.imwrite(os.path.join(out_path, str(img_num)+'.png'), shape_img)
-                    file_path = os.path.join(out_path, str(img_num)+'.txt')
-                    with open(file_path, 'w') as meta_file:
-                        json.dump(meta_dict, meta_file)
-                    img_num += 1
+for alpha_i, alphanum in enumerate(possible_chars):
+    with open('flu_oldcs.names', 'a') as classfile:
+        classfile.write(alphanum+'\n')
+
+#out_dir = 'flu_odlcs'
+#out_path = os.path.join(os.getcwd(), out_dir)
+#img_num = 0
+#for shape, func in possible_shapes.items():
+#    for alpha_i, alphanum in enumerate(possible_chars):
+#        for colour_name1, shape_colour in colour_defs.items():
+#            for colour_name2, letter_colour in colour_defs.items():
+#                if colour_name1 != colour_name2:
+#                    shape_img = np.ones((450,450,4), np.uint8)*255
+#                    func(shape_img, shape_colour)
+#                    alpha_pos = draw_alphanum(shape_img,letter_colour, alphanum)
+#                    meta_dict = {
+#                            'alpha_num':alphanum,
+#                            'class_id':alpha_i,
+#                            'alpha_colour':colour_name2,
+#                            'shape':shape,
+#                            'shape_colour':colour_name1,
+#                            'icdar_text':{
+#                                'xy1':(alpha_pos[0],alpha_pos[3]),
+#                                'xy2':(alpha_pos[2],alpha_pos[3]),
+#                                'xy3':(alpha_pos[0],alpha_pos[1]),
+#                                'xy4':(alpha_pos[2],alpha_pos[1])
+#                                },
+#                            'yolo_spot':{
+#                                'x_center':shape_img.shape[0]/2,
+#                                'y_center':shape_img.shape[1]/2,
+#                                'width':shape_img.shape[0],
+#                                'height':shape_img.shape[1]
+#                                }
+#                            }
+#                    #for key,val in meta_dict['icdar_text'].items():
+#                    #    cv.drawMarker(shape_img, val, colour_defs['white'])
+#                    #cv.imshow('img', shape_img)
+#                    #cv.waitKey(0)
+#                    #invert alpha channel
+#                    shape_img[:,:,-1] = -shape_img[:,:,-1]+255
+#                    cv.imwrite(os.path.join(out_path, str(img_num)+'.png'), shape_img)
+#                    file_path = os.path.join(out_path, str(img_num)+'.txt')
+#                    with open(file_path, 'w') as meta_file:
+#                        json.dump(meta_dict, meta_file)
+#                    img_num += 1
 #cv.destroyAllWindows()
 
