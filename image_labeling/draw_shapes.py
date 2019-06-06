@@ -248,15 +248,17 @@ for shape, func in possible_shapes.items():
                                 'height':shape_img.shape[1]
                                 }
                             }
-                    for key,val in meta_dict['icdar_text'].items():
-                        cv.drawMarker(shape_img, val, colour_defs['white'])
-                    cv.imshow('img', shape_img)
-                    cv.waitKey(0)
+                    #for key,val in meta_dict['icdar_text'].items():
+                    #    cv.drawMarker(shape_img, val, colour_defs['white'])
+                    #cv.imshow('img', shape_img)
+                    #cv.waitKey(0)
+                    #invert alpha channel
+                    shape_img[:,:,-1] = -shape_img[:,:,-1]+255
                     cv.imwrite(os.path.join(out_path, str(img_num)+'.png'), shape_img)
                     file_path = os.path.join(out_path, str(img_num)+'.txt')
                     with open(file_path, 'w') as meta_file:
                         json.dump(meta_dict, meta_file)
                         meta_file.write('\n')
                     img_num += 1
-cv.destroyAllWindows()
+#cv.destroyAllWindows()
 
