@@ -183,12 +183,12 @@ for img in empty_imgs:
             ins_string = ''
 
             if data_format == Formatter.yolo_dataset:
-                ins_string += str(odlc['class_id']) + ','
+                ins_string += str(odlc['class_id']) + ' '
                 for key,val in curr_odlc_text_loc.items():
-                    ins_string += str(val[0]/img_to_write.shape[0]) + ',' 
-                    ins_string += str(val[1]/img_to_write.shape[1]) + ','
-                ins_string += str(odlc['yolo_text']['width']/img_to_write.shape[0]) + ','
-                ins_string += str(odlc['yolo_text']['height']/img_to_write.shape[1]) + ','
+                    ins_string += str(val[0]/img_to_write.shape[0]) + ' ' 
+                    ins_string += str(val[1]/img_to_write.shape[1]) + ' '
+                ins_string += str(odlc['yolo_text']['width']/img_to_write.shape[0]) + ' '
+                ins_string += str(odlc['yolo_text']['height']/img_to_write.shape[1])
                 ins_string += '\n'
                 if DEBUG: print(str(img_odlc_num)+'.txt', ins_string, end='')
                 
