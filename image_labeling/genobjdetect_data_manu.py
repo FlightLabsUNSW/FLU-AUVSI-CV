@@ -96,6 +96,7 @@ num_images = 0
 img_odlc_num = 0
 for img in empty_imgs:
     num_images += 1
+    ins_string = ''
     if DEBUG:
         print(num_images)
         print('going through', img)
@@ -134,9 +135,8 @@ for img in empty_imgs:
 
         top_left = random.randint(0, img_arr.shape[0]-odlc_arr.shape[0]), random.randint(0, img_arr.shape[1]-odlc_arr.shape[1])
 
-        if data_format == Formatter.icdar_dataset:
-            for key,val in curr_odlc_shape_loc.items(): 
-                curr_odlc_shape_loc[key] = int(val[0] + top_left[0]), int(val[1] + top_left[1])
+        for key,val in curr_odlc_shape_loc.items(): 
+            curr_odlc_shape_loc[key] = int(val[0] + top_left[0]), int(val[1] + top_left[1])
         
         if DEBUG:
             print((img_arr.shape[0]-odlc_arr.shape[0], img_arr.shape[1]-odlc_arr.shape[1]))
@@ -168,48 +168,42 @@ for img in empty_imgs:
             cv.waitKey(0)
             cv.destroyAllWindows()
 
-        img_to_write = img_arr[
-                top_left[0]:top_left[0]+odlc_arr.shape[0],
-                top_left[1]:top_left[1]+odlc_arr.shape[1]
-                ]
-
-        if DEBUG:
-            cv.imshow('image '+str(odlc['file_name']), img_to_write)
-            cv.waitKey(0)
-            cv.destroyAllWindows()
-        
-        if DEBUG: print('inserting into', str(img_odlc_num) +'.txt')
-        with open(os.path.join(cwd, out_dir, str(img_odlc_num) + '.txt'), 'a') as img_file:
-            ins_string = ''
-
-            if data_format == Formatter.yolo_dataset:
-                ins_string += str(odlc['shape_class_id']) + ','
-                for key,val in curr_odlc_shape_loc.items():
-                    ins_string += str(val[0]/img_to_write.shape[0]) + ',' 
-                    ins_string += str(val[1]/img_to_write.shape[1]) + ','
-                ins_string += str(odlc['yolo_spot']['width']/img_to_write.shape[0]) + ','
-                ins_string += str(odlc['yolo_spot']['height']/img_to_write.shape[1]) + ','
-                ins_string += '\n'
-                if DEBUG: print(str(img_odlc_num)+'.txt', ins_string, end='')
-                
-            elif data_format == Formatter.icdar_dataset:
-                for key,val in curr_odlc_shape_loc.items():
-                    ins_string += str(val[0]) + ',' + str(val[1]) + ','
-                ins_string += odlc['shape'] + '\n'
-                if DEBUG: print(str(img_odlc_num)+'.txt', ins_string, end='')
-
-            img_file.write(ins_string)
-
-        cv.imwrite(os.path.join(cwd, out_dir, str(img_odlc_num) + '.jpg'), img_to_write)
-
         if data_format == Formatter.yolo_dataset:
-            with open(os.path.join(cwd, 'train.txt'), 'a') as train_file:
-                train_file.write(os.path.join(cwd, out_dir, str(img_odlc_num) + '.jpg') + '\n')
+            ins_string += str(0) + ','
+            for key,val in curr_odlc_shape_loc.items():
+                ins_string += str(val[0]/img_arr.shape[0]) + ',' 
+                ins_string += str(val[1]/img_arr.shape[1]) + ','
+            ins_string += str(odlc['yolo_spot']['width']/img_arr.shape[0]) + ','
+            ins_string += str(odlc['yolo_spot']['height']/img_arr.shape[1]) + ','
+            ins_string += '\n'
+            if DEBUG: print(str(img_odlc_num)+'.txt', ins_string, end='')
+            
+        elif data_format == Formatter.icdar_dataset:
+            for key,val in curr_odlc_shape_loc.items():
+                ins_string += str(val[0]) + ',' + str(val[1]) + ','
+            ins_string += 'shape' + '\n'
+            if DEBUG: print(str(img_odlc_num)+'.txt', ins_string, end='')
 
 
-        if DEBUG: print('finishing inserting into', str(img_odlc_num) + '.txt')
-        with open(os.path.join(cwd, out_dir, str(img_odlc_num) + '.txt'), 'a') as img_file:
-            img_file.write('')
+    if DEBUG:
+        cv.imshow('image', img_arr)
+        cv.waitKey(0)
+        cv.destroyAllWindows()
 
-        img_odlc_num += 1
+    if DEBUG: print('inserting into', str(img_odlc_num) +'.txt')
+    with open(os.path.join(cwd, out_dir, str(img_odlc_num) + '.txt'), 'w') as img_file:
+        img_file.write(ins_string)
+
+    cv.imwrite(os.path.join(cwd, out_dir, str(img_odlc_num) + '.jpg'), img_arr)
+
+    if data_format == Formatter.yolo_dataset:
+        with open(os.path.join(cwd, 'train.txt'), 'a') as train_file:
+            train_file.write(os.path.join(cwd, out_dir, str(img_odlc_num) + '.jpg') + '\n')
+
+
+    if DEBUG: print('finishing inserting into', str(img_odlc_num) + '.txt')
+    with open(os.path.join(cwd, out_dir, str(img_odlc_num) + '.txt'), 'a') as img_file:
+        img_file.write('')
+
+    img_odlc_num += 1
 

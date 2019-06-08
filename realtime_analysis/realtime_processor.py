@@ -10,12 +10,6 @@ nmsThreshold = 0.4   #Non-maximum suppression threshold
 inpWidth = 416       #Width of network's input image
 inpHeight = 416      #Height of network's input image
 
-# Load names of classes
-classesFile = "fluodlc.names";
-classes = None
-with open(classesFile, 'rt') as f:
-    classes = f.read().rstrip('\n').split('\n')
-
 # Give the configuration and weight files for the model and load the network using them.
 modelConfiguration = "flu-yolov3-tiny.cfg";
 modelWeights = "flu-yolov3-tiny_1000.weights";
@@ -71,6 +65,7 @@ def postprocess(frame, outs):
         width = box[2]
         height = box[3]
         detected_objs.append({'class':classIds[i], 'confidence':confidences[i], 'left':left, 'top':top, 'right':left + width, 'bottom':top + height})
+    return detected_objs
 
 
 
@@ -85,40 +80,48 @@ def classify(frame):
     outs = net.forward(getOutputsNames(net))
 
     # Remove the bounding boxes with low confidence
-    postprocess(frame, outs)
-
-    # Sets the input to the network
-    net.setInput(blob)t
-
-    # Runs the forward pass to get output of the output layers
-    outs = net.forward(getOutputsNames(net))
-
-    # Remove the bounding boxes with low confidence
     return postprocess(frame, outs)
 
-def run_classification(cmd_pipe, data_pipe, vid_name):
-    cap = cv.VideoCapture(vid_name)
-    done = False
+class Dummy_pipe():
+    def send(self, data_in):
+        return
 
-    while not cmd_pipe.recv()['run']:
-        continue
+    def recv(self):
+        return True
+
+def run_classification(data_pipe, cmd_pipe=Dummy_pipe(), vid_names=default_vids):
+    caps = []
+    done = []
+    for vid in vid_names:
+        caps.append(cv.VideoCapture(vid_name))
+        done.append(False)
+
+    #while not cmd_pipe.recv()['run']:
+    #    continue
     cmd_pipe.send({'started':1})
 
-    while not done:
-        has_img, img = cap.read()
-        if not has_img:
-            cap.release()
-            cmd_pip.send({'finished':1})
-            done = True
-        else:
-            found_objs = classify(img)
-            obj_detected = {}
-            obj_detected['image'] = img
-            obj_detected['objects'] = found_objs
-            obj_detected['time_taken'] = datetime.now().timestamp()
+    while not all_done:
+        for cap_i, cap in enumerate(caps):
+            if done[cap_i]:
+                has_img, img = cap.read()
+                read_time = datetime.now().timestamp()
+                if not has_img:
+                    cap.release()
+                    cmd_pip.send({'finished':1})
+                    done[cap_i] = True
+                else:
+                    found_objs = classify(img)
+                    obj_detected = {}
+                    obj_detected['image'] = img
+                    obj_detected['objects'] = found_objs
+                    obj_detected['time_taken'] = read_time
 
-            data_pipe.send(obj_detected)
-            cmd_pipe.send({'object_sent':1})
+                    data_pipe.send(obj_detected)
+                    cmd_pipe.send({'object_sent':1})
+        all_done = True
+        for cap_d in done:
+            if not cap_d:
+                all_done = False
 
     #redundant from Process.join() but still do it anyway
     cmd_pipe.send({'done':1})
