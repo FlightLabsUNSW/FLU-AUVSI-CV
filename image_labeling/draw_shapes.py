@@ -2,6 +2,7 @@
 import cv2 as cv
 import numpy as np
 import os
+import json
 
 colour_defs = {
     'white':(255,255,255),
@@ -12,8 +13,8 @@ colour_defs = {
     'green':(0,255,0),
     'yellow':(0,245,245),
     'purple':(125,0,125),
-    'brown':(0,0,0),
-    'orange':(0,0,0)
+    'brown':(165,42,42),
+    'orange':(255,165,0)
     }
 
 possible_chars = [
@@ -34,9 +35,15 @@ def draw_semicircle(bg_img, colour):
     cv.rectangle(bg_img, (0,centre[1]), bg_img.shape[:2], (255,255,255,255), cv.FILLED)
 
 def draw_quarter_circle(bg_img, colour):
-    centre = (0, bg_img.shape[1])
-    radius = min(bg_img.shape[:2])
+    radius = int(6*450/7)
+    centre = (int(bg_img.shape[0]/2 - 4/(3*np.pi)*radius), int(bg_img.shape[1]/2 + 4/(3*np.pi)*radius))
     cv.circle(bg_img, centre, radius, colour, cv.FILLED)
+    p1 = (0,0)
+    p2 = (centre[0], bg_img.shape[1])
+    cv.rectangle(bg_img, p1, p2, (255,255,255,255), cv.FILLED)
+    p1 = (0,centre[1])
+    p2 = (bg_img.shape[0],bg_img.shape[1])
+    cv.rectangle(bg_img, p1, p2, (255,255,255,255), cv.FILLED)
 
 def draw_triangle(bg_img, colour):
     pad_y = (1/2-(1/4)*3**(1/2))*bg_img.shape[1]
@@ -113,37 +120,151 @@ def draw_octagon(bg_img, colour):
     cv.polylines(bg_img, pts=pts_in, isClosed=False, color=colour)
     cv.fillPoly(bg_img, pts=pts_in, color=colour)
 
+def coord_dist(x1,y1,x2,y2):
+    return np.sqrt((x1-x2)**2 + (y1-y2)**2)
+
 def draw_star(bg_img, colour):
-    pass
+    numberOfPoints = 5
+    rotationAngle = -np.pi/2
+    xCenter = bg_img.shape[0]/2
+    yCenter = bg_img.shape[1]/2
+
+    start = 0.0
+    stop = (numberOfPoints-1)*np.pi
+    step = (numberOfPoints-1)/numberOfPoints*np.pi
+    # Determine the angles that the arm tips are at
+    theta = np.arange(start, stop, step) + rotationAngle;
+    # Define distance from the arm tip to the center of star.
+    amplitude = min(bg_img.shape[0]/2, bg_img.shape[1]/2)
+    # Get x and y coordinates of the arm tips.
+    x = np.multiply(amplitude , np.cos(theta)) + xCenter
+    y = np.multiply(amplitude , np.sin(theta)) + yCenter
+    star_pts = np.array([[(int(x[i]), int(y[i])) for i in range(min(len(x),len(y)))]], dtype=np.int32)
+    pts_in = []
+    star_pts = star_pts.tolist()[0]
+    #print(star_pts)
+    for index,val in enumerate(star_pts):
+        i1 = index
+        i2 = (index+1)%5
+        i3 = (index+4)%5
+        #print(pts_in)
+        p1 = val
+        p2 = star_pts[i2]
+        p3 = (int(bg_img.shape[0]/2), int(bg_img.shape[1]/2))
+        p4 = star_pts[i3]
+        #p2 = [0,0]
+        #dist = coord_dist(*val, *star_pts[i2])
+        #print(*val, *star_pts[i3], dist)
+        #dist = 0
+        #ang = 180-54+theta[index]
+        #p2[0] = star_pts[i2][0] + np.cos(ang*(180/np.pi))*dist
+        #p2[1] = star_pts[i2][1] + np.sin(ang*(180/np.pi))*dist
+
+        #p3 = [0,0]
+        #dist = coord_dist(*val, *star_pts[i3])
+        #print(*val, *star_pts[i3], dist)
+        #dist = 0
+        #ang = 54+theta[index]
+        #p3[0] = star_pts[i3][0] + np.cos(ang*(180/np.pi))*dist
+        #p3[1] = star_pts[i3][1] + np.sin(ang*(180/np.pi))*dist
+        rot_triangle = np.array([[p1, p2, p3, p4]], dtype=np.int32)
+        cv.polylines(bg_img, pts=rot_triangle, isClosed=False, color=colour)
+        cv.fillPoly(bg_img, pts=rot_triangle, color=colour)
+
+        pts_in.append(rot_triangle)
+        
+    pts_in = np.array(pts_in)
+    #print(pts_in)
+    #cv.polylines(bg_img, pts=pts_in, isClosed=False, color=colour)
+    #cv.fillPoly(bg_img, pts=pts_in, color=colour)
 
 def draw_cross(bg_img, colour):
     vert_top_left = (int(bg_img.shape[0]/4), 0)
     vert_bottom_right = (int(3*bg_img.shape[0]/4), bg_img.shape[1])
     cv.rectangle(bg_img, vert_top_left, vert_bottom_right, colour, cv.FILLED)
+    hori_top_left = (0, int(bg_img.shape[1]/4))
+    hori_bottom_right = (bg_img.shape[0], int(3*bg_img.shape[1]/4))
+    cv.rectangle(bg_img, hori_top_left, hori_bottom_right, colour, cv.FILLED)
+
+def draw_alphanum(bg_img, colour, letter):
+    font = cv.FONT_HERSHEY_DUPLEX
+    thickness = 10
+    pixel_size = (int(bg_img.shape[0]/4), int(bg_img.shape[1]/4))
+    try:
+        font_scale = cv.getFontScaleFromHeight(font, pixel_size[1], thickness)
+    except AttributeError as err:
+        font_scale = 5.071428571428571
+
+    font_size, ret = cv.getTextSize(letter, font, font_scale, thickness)
+    textX = int((bg_img.shape[1] - font_size[0]) / 2)
+    textY = int((bg_img.shape[0] + font_size[1]) / 2)
+    
+    cv.putText(bg_img, letter, (textX, textY), font, font_scale, colour, thickness)
+    bottom_left = (textX, textY)
+    top_right = (textX+font_size[0], textY-font_size[1])
+    return (*bottom_left, *top_right)
+
+possible_shapes = {
+    'circle':draw_circle,
+    'semicircle':draw_semicircle,
+    'quarter_circle':draw_quarter_circle,
+    'triangle':draw_triangle,
+    'square':draw_square,
+    'rectangle':draw_rectangle,
+    'trapezoid':draw_trapezoid,
+    'pentagon':draw_pentagon,
+    'hexagon':draw_hexagon,
+    'heptagon':draw_heptagon,
+    'octagon':draw_octagon,
+    'star':draw_star,
+    'cross':draw_cross
+    }
 
 
-possible_shapes = [
-    draw_circle,
-    draw_semicircle,
-    draw_quarter_circle,
-    draw_triangle,
-    draw_square,
-    draw_rectangle,
-    draw_trapezoid,
-    draw_pentagon,
-    draw_hexagon,
-    draw_heptagon,
-    draw_octagon,
-    draw_star,
-    draw_cross
-    ]
+for alpha_i, alphanum in enumerate(possible_chars):
+    with open('flu_oldcs.names', 'a') as classfile:
+        classfile.write(alphanum+'\n')
 
-
-shape_img = np.ones((450,450,4), np.uint8)*255
-print(shape_img.shape)
-print(shape_img[225,225])
-draw_cross(shape_img, (0,0,0))
-cv.imshow('img', shape_img)
-cv.waitKey(0)
-cv.destroyAllWindows()
+#out_dir = 'flu_odlcs'
+#out_path = os.path.join(os.getcwd(), out_dir)
+#img_num = 0
+#for shape, func in possible_shapes.items():
+#    for alpha_i, alphanum in enumerate(possible_chars):
+#        for colour_name1, shape_colour in colour_defs.items():
+#            for colour_name2, letter_colour in colour_defs.items():
+#                if colour_name1 != colour_name2:
+#                    shape_img = np.ones((450,450,4), np.uint8)*255
+#                    func(shape_img, shape_colour)
+#                    alpha_pos = draw_alphanum(shape_img,letter_colour, alphanum)
+#                    meta_dict = {
+#                            'alpha_num':alphanum,
+#                            'class_id':alpha_i,
+#                            'alpha_colour':colour_name2,
+#                            'shape':shape,
+#                            'shape_colour':colour_name1,
+#                            'icdar_text':{
+#                                'xy1':(alpha_pos[0],alpha_pos[3]),
+#                                'xy2':(alpha_pos[2],alpha_pos[3]),
+#                                'xy3':(alpha_pos[0],alpha_pos[1]),
+#                                'xy4':(alpha_pos[2],alpha_pos[1])
+#                                },
+#                            'yolo_spot':{
+#                                'x_center':shape_img.shape[0]/2,
+#                                'y_center':shape_img.shape[1]/2,
+#                                'width':shape_img.shape[0],
+#                                'height':shape_img.shape[1]
+#                                }
+#                            }
+#                    #for key,val in meta_dict['icdar_text'].items():
+#                    #    cv.drawMarker(shape_img, val, colour_defs['white'])
+#                    #cv.imshow('img', shape_img)
+#                    #cv.waitKey(0)
+#                    #invert alpha channel
+#                    shape_img[:,:,-1] = -shape_img[:,:,-1]+255
+#                    cv.imwrite(os.path.join(out_path, str(img_num)+'.png'), shape_img)
+#                    file_path = os.path.join(out_path, str(img_num)+'.txt')
+#                    with open(file_path, 'w') as meta_file:
+#                        json.dump(meta_dict, meta_file)
+#                    img_num += 1
+#cv.destroyAllWindows()
 

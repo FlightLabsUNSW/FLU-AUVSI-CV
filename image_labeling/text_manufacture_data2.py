@@ -5,6 +5,7 @@ import random
 import numpy as np
 import queue
 from enum import Enum
+import json
 
 DEBUG = False
 
@@ -19,11 +20,11 @@ flu_odlcs_dir = 'flu_odlcs'
 out_dir = 'labeled_dataset'
 cwd = os.getcwd()
 empty_imgs = os.listdir(os.path.join(cwd, empty_imgs_dir))
-flu_odlcs = os.listdir(os.path.join(cwd, flu_odlcs_dir))
+flu_odlcs = sorted(os.listdir(os.path.join(cwd, flu_odlcs_dir)))
 
 # Max number
-num_obj_in_img = 10
-odlc_scale = 6
+num_obj_in_img = 3
+odlc_scale = 2
 
 # Modified imutils rotate_bound function
 # Simply changing how the warpaffine function is called
@@ -63,73 +64,32 @@ def rotate_bound(image, angle):
 
 # Initialise the info about each odlc
 li = []
-classes = []
-for flu_shape in flu_odlcs:
-    qu = queue.Queue()
-    def onMouse(event, x, y, flags, param):
-        if event == cv.EVENT_LBUTTONDOWN:
-           # draw circle here (etc...)
-           print('x = %d, y = %d'%(x, y))
-           qu.put((x,y), False)
-    cv.namedWindow(flu_shape)
-    cv.setMouseCallback(flu_shape, onMouse)
+for flu_odlc_file in flu_odlcs:
 
-    meta_list = flu_shape.split('_')
-    meta = {}
-    meta['alpha_num'] = meta_list[0]
-    if meta['alpha_num'] in classes:
-        meta['class_id'] = classes.index(meta['alpha_num'])
-    else:
-        classes.append(meta['alpha_num'])
-        meta['class_id'] = len(classes)-1
-    meta['alpha_colour'] = meta_list[1]
-    meta['shape'] = meta_list[2]
-    meta['shape_colour'], meta['image_type'] = meta_list[-1].split('.')
-    meta['file_name'] = flu_shape
+    if flu_odlc_file.endswith('.txt'):
+        with open(os.path.join(cwd, flu_odlcs_dir, flu_odlc_file), 'r') as meta_file:
+            meta = json.load(meta_file)
 
-    odlc_path = os.path.join(cwd, flu_odlcs_dir, meta['file_name'])
-    odlc_arr = cv.imread(odlc_path)
-    cv.imshow(meta['file_name'], odlc_arr)
-    cv.waitKey(0)
-    meta['icdar_text'] = {}
-    meta['yolo_text'] = {}
-    while not qu.empty():
-        meta['icdar_text']['xy1'] = qu.get(False)
-        if not qu.empty():
-            meta['icdar_text']['xy2'] = qu.get(False)
-        if not qu.empty():
-            meta['icdar_text']['xy3'] = qu.get(False)
-        if not qu.empty():
-            meta['icdar_text']['xy4'] = qu.get(False)
-    cv.destroyAllWindows()
+        meta['file_name'] = flu_odlc_file.split('.')[0] + '.png'
 
-    allx, ally = [], []
-    x_center, y_center = 0, 0
-    for key, val in meta['icdar_text'].items():
-        x_center += val[0]
-        y_center += val[1]
-        allx.append(val[0])
-        ally.append(val[1])
-    x_center /= 4
-    y_center /= 4
-    allx.sort()
-    ally.sort()
-
-    meta['yolo_text']['x_center'] = x_center
-    meta['yolo_text']['y_center'] = y_center
-    meta['yolo_text']['width'] = allx[-1] - allx[0]
-    meta['yolo_text']['height'] = ally[-1] - ally[0]
+        meta['yolo_text'] = {}
+        allx, ally = [], []
+        x_center, y_center = 0, 0
+        for key, val in meta['icdar_text'].items():
+            x_center += val[0]
+            y_center += val[1]
+            allx.append(val[0])
+            ally.append(val[1])
+        x_center /= 4
+        y_center /= 4
+        allx.sort()
+        ally.sort()
+        meta['yolo_text']['x_center'] = x_center
+        meta['yolo_text']['y_center'] = y_center
+        meta['yolo_text']['width'] = allx[-1] - allx[0]
+        meta['yolo_text']['height'] = ally[-1] - ally[0]
     
-
-    
-    print(meta)
-    li.append(meta)
-
-if data_format == Formatter.yolo_dataset:
-    with open(os.path.join(cwd, 'flu_odlcs.names'), 'w') as class_file:
-        for alpha in classes:
-            class_file.write(alpha + '\n')
-
+        li.append(meta)
 
 flu_odlcs = li
 num_images = 0
@@ -154,7 +114,7 @@ for img in empty_imgs:
                 odlc['yolo_text']['y_center']
                 )}
 
-        odlc_arr = cv.imread(odlc_path)
+        odlc_arr = cv.imread(odlc_path, cv.IMREAD_UNCHANGED)
         if DEBUG: print(odlc_arr, odlc_arr.shape)
         scale = odlc_scale
         if DEBUG: print('resizing odlc')
@@ -187,8 +147,8 @@ for img in empty_imgs:
         if DEBUG: print('putting odlc into image')
         for col in range(odlc_arr.shape[1]): 
             for row in range(odlc_arr.shape[0]):
-                if np.array(odlc_arr[row,col]).sum() < np.array((240,240,240)).sum():
-                    ins = odlc_arr[row, col]
+                if odlc_arr[row,col,-1] > 10:
+                    ins = odlc_arr[row, col, :3]
 
                     insert_point = top_left+np.array((row, col))
                     try:
@@ -200,6 +160,7 @@ for img in empty_imgs:
                         print(insert_point[0], insert_point[1])
                         print(img_arr.shape)
                         print(insert_point[0], img_arr[insert_point[0]].shape)
+                        print(ins)
                         raise err
 
         if DEBUG:
@@ -222,12 +183,12 @@ for img in empty_imgs:
             ins_string = ''
 
             if data_format == Formatter.yolo_dataset:
-                ins_string += str(odlc['class_id']) + ','
+                ins_string += str(odlc['class_id']) + ' '
                 for key,val in curr_odlc_text_loc.items():
-                    ins_string += str(val[0]/img_to_write.shape[0]) + ',' 
-                    ins_string += str(val[1]/img_to_write.shape[1]) + ','
-                ins_string += str(odlc['yolo_text']['width']/img_to_write.shape[0]) + ','
-                ins_string += str(odlc['yolo_text']['height']/img_to_write.shape[1]) + ','
+                    ins_string += str(val[0]/img_to_write.shape[0]) + ' ' 
+                    ins_string += str(val[1]/img_to_write.shape[1]) + ' '
+                ins_string += str(odlc['yolo_text']['width']/img_to_write.shape[0]) + ' '
+                ins_string += str(odlc['yolo_text']['height']/img_to_write.shape[1])
                 ins_string += '\n'
                 if DEBUG: print(str(img_odlc_num)+'.txt', ins_string, end='')
                 
