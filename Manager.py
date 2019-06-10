@@ -1,6 +1,7 @@
 from RealTimeProcess import real_time_process
-from ODLC import Shape, Person
-from IDGenerator import IDGenerator
+from ODLC            import Shape, Person
+from IDGenerator     import IDGenerator
+from Telemetry       import Telemetry
 
 import multiprocessing as mp
 import cv2
@@ -10,9 +11,6 @@ import math
 import os
 import zipfile
 import numpy as np
-
-#import rospy
-#from sensor_msgs import msg
 
 SHAPE_THRESHOLD              = 0.5 
 LOCATION_DUPLICATE_THRESHOLD = 1   # Metres
@@ -29,6 +27,16 @@ class Manager:
 
 		# List of new unanalysed shapes with ODLC classes in the analysis pool
 		self.shapes_queue = []
+		
+		# Telemetry process
+		telemetry_conn1, telemetry_conn2 = mp.Pipe()
+
+		telemetry = Telemetry(telemetry_conn1, telemetry_conn2)
+
+		telemetry = mp.Process(target=telemetry.listen)
+		telemetry.start()
+
+		self.telemetry_pipe = telemetry_conn1
 
 		# Real time process with pipe
 		parent_conn, child_conn = mp.Pipe()
@@ -42,7 +50,7 @@ class Manager:
 
 		# Main loop
 		while True:
-
+			
 			# Check if there is a new capture
 			if (parent_conn.poll()):
 				# Get image and objects list from real time process
@@ -53,10 +61,6 @@ class Manager:
 
 				# Add new people to the seen people list
 				self.people += new_people
-
-				# Printing new people objects for testing
-				for person in new_people:
-					print("Object ID: " + str(person.id) + " " + str(person.get_dict_to_send()))
 
 				# Object analysis
 				for shape_to_analyse in new_shapes:
@@ -114,7 +118,7 @@ class Manager:
 			self.running_jobs = unfinished_jobs
 
 			print("num shapes: " + str(len(self.shapes)))
-			print("num people" + str(len(self.people)))
+			print("num people: " + str(len(self.people)))
 
 	# Makes a zip folder containing a json string file and image of the object
 	def send_object_to_ground(self, object_to_send):
@@ -182,7 +186,7 @@ class Manager:
 	    return distance
 
 	def process_capture(self, real_time_capture):
-		snapshot_time       = datetime.datetime.now().time()
+		snapshot_time       = datetime.datetime.utcnow()
 		image               = real_time_capture["image"]
 		unprocessed_objects = real_time_capture["objects"]
 
@@ -196,10 +200,13 @@ class Manager:
 		}
 
 		# Get telemtry
-		drone_latitude, drone_longitude = self.get_current_drone_coordinates()
-		drone_angle    = self.get_current_drone_angle()
-		drone_altitude = self.get_current_drone_altitude()
-		drone_bearing  = self.get_current_drone_bearing()
+		telemtry = self.get_telemetry(snapshot_time)
+
+		drone_latitude  = telemtry["latitude"]
+		drone_longitude = telemtry["longitude"]
+		drone_angle    =  telemtry["angle"]
+		drone_altitude =  telemtry["altitude"]
+		drone_bearing  =  telemtry["bearing"]
 
 		# Processed objects
 		shapes = []
@@ -250,12 +257,12 @@ class Manager:
 
 				# Check if shape exists
 				if   (shape_detected == "analysed"):
-					shape.add_new_object(confidence, snapshot_time, crop_image, latitude, longitude, distance_to_drone)
+					shape.add_new_shape(confidence, snapshot_time, crop_image, latitude, longitude, distance_to_drone)
 
 					shapes.append(shape)
 
 				elif (shape_detected == "queued"):
-					shape.add_new_object(confidence, snapshot_time, crop_image, latitude, longitude, distance_to_drone)
+					shape.add_new_shape(confidence, snapshot_time, crop_image, latitude, longitude, distance_to_drone)
 				
 				elif (shape_detected == "running"):
 					image_object["latitude"]          = latitude
@@ -281,39 +288,43 @@ class Manager:
 				# Check if person exists
 				if (person_detected):
 					
-					person.add_new_object(confidence, snapshot_time, crop_image, latitude, longitude, distance_to_drone)
+					person.add_new_person(confidence, snapshot_time, crop_image, latitude, longitude, distance_to_drone)
 
-					people.append(person)
+					print("Object ID: " + str(person.id) + " " + str(person.get_dict_to_send()))
 				else:
 					# Make new shape and add it to the new shapes list
 					id         = self.id_generator.get_id()
 					new_person = Person(id, confidence, snapshot_time, crop_image, latitude, longitude, distance_to_drone, threshold)
 
+					print("Object ID: " + str(new_person.id) + " " + str(new_person.get_dict_to_send()))
+
 					people.append(new_person)
 
 		return shapes, people
 
-	def get_current_drone_angle(self):
-		x_angle = 0
-		y_angle = 0
+	def get_telemetry(self, time):
 
-		return { "x": x_angle, "y": y_angle }
+		while True:
+			if (self.telemetry_pipe.poll()):
+				telemetry = self.telemetry_pipe.recv()
+				#print(str(telemetry["time"]) + " | " + str(time))
+				if telemetry["time"] >= time:
+					break
 
-	def get_current_drone_altitude(self):
-		altitude = 100
-		
-		return altitude
+		data = telemetry["data"]
 
-	def get_current_drone_bearing(self):
-		bearing = 0
-		
-		return bearing
+		telemetry = {
+			"angle": {
+				"x": data.angular_position["x_angle"],
+				"y": data.angular_position["y_angle"]
+			},
+			"altitude":  data.global_position["rel_alt"],
+			"bearing":   data.global_position["compass_hdg"],
+			"latitude":  data.global_position["latitude"],
+			"longitude": data.global_position["longitude"]
+		}
 
-	def get_current_drone_coordinates(self):
-		latitude  = 0
-		longitude = 0
-		
-		return latitude, longitude
+		return telemetry
 
 	def get_object_coordinates(self, object_pixel, fov, width, height, drone_angle, drone_latitude, drone_longitude, drone_altitude, drone_bearing):
 		x_distance = self.get_1D_object_distance(fov["x"], object_pixel["x"], width,  drone_angle["x"], drone_altitude)

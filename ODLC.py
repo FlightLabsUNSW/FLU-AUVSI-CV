@@ -9,15 +9,14 @@ class ODLC(object):
 		self.image_distance     = initial_image_distance # Distance of the best object to the drone's ground position
 		self.latitude           = initial_latitude
 		self.longitude          = initial_longitude
-		self.unanalysed_objects = []                     # snapshot_time, image
-		self.analysed_objects   = 0                      # snapshot_time, image, shape, shape_colour, character, character_colour, character_orientation
+		self.num_objects        = 0                      # snapshot_time, image, shape, shape_colour, character, character_colour, character_orientation
 		self.sent               = False                  # Whether or not the object has been sent to the ground station
 		self.autonomous         = autonomous             # Whether or not the object was analaysed automatically
 
-	def add_new_object(self, new_confidence, new_snapshot_time, new_image, new_latitude, new_longitude, new_distance):
+	def add_new_object(self, new_confidence, new_image, new_latitude, new_longitude, new_distance):
 		
 		# Get number of objects in ODLC
-		num_objects = self.analysed_objects + len(self.unanalysed_objects)
+		num_objects = self.total_num_objects
 
 		# Update ODLC confidence
 		self.confidence = (self.confidence * num_objects + new_confidence) / (num_objects + 1)
@@ -32,20 +31,12 @@ class ODLC(object):
 		if (new_distance < self.image_distance):
 			self.best_image     = new_image
 			self.image_distance = new_distance
-
-		# Create new unanalysed object
-		new_object = {
-			"snapshot_time": new_snapshot_time,
-			"image":         new_image
-		}
-
-		# Add the new object to the unanalysed objects list
-		self.unanalysed_objects.append(new_object)
+		
 
 class Shape(ODLC):
 	def __init__(self, id, initial_confidence, initial_snapshot_time, initial_image, initial_latitude, initial_longitude, initial_image_distance, threshold):
 		super().__init__(id, initial_confidence, initial_image, initial_latitude, initial_longitude, initial_image_distance, threshold, True)
-
+		self.unanalysed_shapes      = [] # snapshot_time, imaage
 		self.shapes                 = {}
 		self.shape_colours          = {}
 		self.characters             = {}
@@ -57,13 +48,26 @@ class Shape(ODLC):
 			"image":         initial_image
 		}
 
-		self.unanalysed_objects.append(initial_object)
+		self.unanalysed_shapes.append(initial_object)
+
+	def add_new_shape(self, new_confidence, new_snapshot_time, new_image, new_latitude, new_longitude, new_distance):
+		
+		new_object = self.add_new_object(new_confidence, new_image, new_latitude, new_longitude, new_distance)
+
+		# Create new unanalysed object
+		new_object = {
+			"snapshot_time": new_snapshot_time,
+			"image":         new_image
+		}
+
+		# Add the new object to the unanalysed objects list
+		self.unanalysed_shapes.append(new_object)
 
 	# Method to run in analysis process
 	def run_analysis(self, conn):
 
 		# Analyse each unanalysed object
-		for unanalysed_object in self.unanalysed_objects:
+		for unanalysed_object in self.unanalysed_shapes:
 
 			# Start analysis on the new image object
 			analysis = Analysis(unanalysed_object["image"])
@@ -83,10 +87,10 @@ class Shape(ODLC):
 			self.add_character_orientation(character_orientation)
 
 			# Increment the number of analysed objects
-			self.analysed_objects += 1
+			self.num_objects += 1
 
 		# Reset unanalysed objects list
-		self.unanalysed_objects = []
+		self.unanalysed_shapes = []
 
 		# Send analysed ODLC class back to the manager process
 		conn.send(self)
@@ -120,9 +124,13 @@ class Shape(ODLC):
 		#if (self.character_orientation == None)
 
 		# Get number of objects in ODLC not including the shape being analysed
-		num_objects = self.analysed_objects + len(self.unanalysed_objects) - 1
+		num_objects = self.num_objects + len(self.unanalysed_shapes) - 1
 
 		self.character_orientation = (self.character_orientation * num_objects + new_character_orientation) / (num_objects + 1)
+
+	@property
+	def total_num_objects(self):
+		return self.num_objects + len(self.unanalysed_shapes)
 
 	@property
 	def shape(self):
@@ -176,10 +184,9 @@ class Shape(ODLC):
 
 		return most_common_character_colour
 
-		# TODO - character, char colour
-
 	def get_dict_to_send(self):
 		dictionary = {
+			"num objects seen":     self.num_objects,
 			"shape":                self.shape,
 			"shapeColor":           self.shape_colour,
 			"character":            self.character,
@@ -196,8 +203,14 @@ class Person(ODLC):
 	def __init__(self, id, initial_confidence, initial_snapshot_time, initial_image, initial_latitude, initial_longitude, initial_image_distance, threshold):
 		super().__init__(id, initial_confidence, initial_image, initial_latitude, initial_longitude, initial_image_distance, threshold, False)
 
+	def add_new_person(self, new_confidence, new_snapshot_time, new_image, new_latitude, new_longitude, new_distance):
+		new_object = self.add_new_object(new_confidence, new_image, new_latitude, new_longitude, new_distance)
+
+		self.num_objects += 1
+
 	def get_dict_to_send(self):
 		dictionary = {
+			"num objects seen": self.num_objects,
 			"id":         self.id,
 			"type":       "person",
 			"latitude":   self.latitude,
@@ -206,3 +219,7 @@ class Person(ODLC):
 		}
 
 		return dictionary
+
+	@property
+	def total_num_objects(self):
+		return self.num_objects
