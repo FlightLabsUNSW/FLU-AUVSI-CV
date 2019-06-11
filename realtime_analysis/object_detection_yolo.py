@@ -9,6 +9,7 @@ import sys
 import numpy as np
 import os
 
+import realtime_processor as rp
 
 parser = argparse.ArgumentParser(description='Object Detection using YOLO in OPENCV')
 parser.add_argument('--image', help='Path to image file.')
@@ -16,7 +17,7 @@ parser.add_argument('--video', help='Path to video file.')
 args = parser.parse_args()
         
 # Load names of classes
-classesFile = "fluodlc.names";
+classesFile = "genobjdet.names"
 classes = None
 with open(classesFile, 'rt') as f:
     classes = f.read().rstrip('\n').split('\n')
@@ -83,7 +84,7 @@ while cv.waitKey(1) < 0:
         break
 
 
-    found_objs = classify(frame)
+    found_objs, net = rp.classify_and_net(frame)
     for obj in found_objs:
         drawPred(*obj)
 
