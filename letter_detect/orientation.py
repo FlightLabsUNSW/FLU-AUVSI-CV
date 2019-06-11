@@ -12,12 +12,14 @@ img2 = cv2.Canny(img2, 100, 500)
 
 # Initiate SIFT detector
 freak = cv2.xfeatures2d.FREAK_create()
+# Initiate FAST detector
+fast = cv2.FastFeatureDetector_create()
+# Initiate ORB detector
+orb = cv2.ORB_create()
 
-# find the keypoints and descriptors with FREAK
-kp_temp1 = freak.detect(img1,None)
-kp1, des1 = freak.compute(img1,kp_temp1)
-kp_temp2 = freak.detect(img2,None)
-kp2, des2 = freak.compute(img2,kp_temp2)
+# Find the keypoints and descriptors with FREAK
+kp1, des1 = freak.detect(img1,None)
+kp2, des2 = freak.detect(img2,None)
 
 FLANN_INDEX_KDTREE = 0
 index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
@@ -58,4 +60,3 @@ draw_params = dict(matchColor = (0,255,0), # draw matches in green color
 img3 = cv2.drawMatches(img1,kp1,img2,kp2,good,None,**draw_params)
 
 plt.imshow(img3, 'gray'),plt.show()
-
