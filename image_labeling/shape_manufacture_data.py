@@ -17,7 +17,7 @@ class Formatter(Enum):
 data_format = Formatter.yolo_dataset
 empty_imgs_dir = 'empty_imgs'
 flu_odlcs_dir = 'flu_odlcs'
-out_dir = 'labeled_dataset'
+out_dir = 'shape_labeled_dataset'
 cwd = os.getcwd()
 empty_imgs = os.listdir(os.path.join(cwd, empty_imgs_dir))
 flu_odlcs = sorted(os.listdir(os.path.join(cwd, flu_odlcs_dir)))
@@ -183,12 +183,12 @@ for img in empty_imgs:
             ins_string = ''
 
             if data_format == Formatter.yolo_dataset:
-                ins_string += str(odlc['shape_class_id']) + ','
+                ins_string += str(odlc['shape_class_id']) + ' '
                 for key,val in curr_odlc_shape_loc.items():
-                    ins_string += str(val[0]/img_to_write.shape[0]) + ',' 
-                    ins_string += str(val[1]/img_to_write.shape[1]) + ','
-                ins_string += str(odlc['yolo_spot']['width']/img_to_write.shape[0]) + ','
-                ins_string += str(odlc['yolo_spot']['height']/img_to_write.shape[1]) + ','
+                    ins_string += str(val[0]/img_to_write.shape[0]) + ' '
+                    ins_string += str(val[1]/img_to_write.shape[1]) + ' '
+                ins_string += str(odlc['yolo_spot']['width']/img_to_write.shape[0]) + ' '
+                ins_string += str(odlc['yolo_spot']['height']/img_to_write.shape[1]) + ' '
                 ins_string += '\n'
                 if DEBUG: print(str(img_odlc_num)+'.txt', ins_string, end='')
                 
