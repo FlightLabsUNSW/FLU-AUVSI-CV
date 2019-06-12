@@ -151,12 +151,14 @@ for img in empty_imgs:
                     ins = odlc_arr[row, col, :3]
 
                     insert_point = top_left+np.array((row, col))
+                    alpha, beta, gamma = [0.6,0.3,0.1]
                     try:
-                        img_arr[insert_point[0], insert_point[1]] = ins
+                        img_arr[insert_point[0], insert_point[1]] = img_arr[insert_point[0], insert_point[1]] * beta + ins * alpha + gamma
                     except Exception as err:
                         print('Out of bounds error start:')
                         print((row, col))
                         print(odlc_arr[row].shape)
+                        print(insert_point[:2][::-1])
                         print(insert_point[0], insert_point[1])
                         print(img_arr.shape)
                         print(insert_point[0], img_arr[insert_point[0]].shape)
