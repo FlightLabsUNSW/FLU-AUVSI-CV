@@ -3,6 +3,8 @@ import numpy as np
 import cv2
 from matplotlib import pyplot as plt
 
+MIN_MATCH_COUNT = 10
+
 # Source: https://medium.com/software-incubator/introduction-to-orb-oriented-fast-and-rotated-brief-4220e8ec40cf
 # Load the image
 image1 = cv2.imread('Y.png')
@@ -32,10 +34,8 @@ plots[1].imshow(test_image)
 
 orb = cv2.ORB_create()
 
-kp_temp1 = orb.detect(training_gray, None)
-train_keypoints, train_descriptor = orb.compute(training_gray, kp_temp1)
-kp_temp2 = orb.detect(training_gray, None)
-test_keypoints, test_descriptor = orb.compute(test_gray, kp_temp2)
+train_keypoints, train_descriptor = orb.detectAndCompute(training_gray, None)
+test_keypoints, test_descriptor = orb.detectAndCompute(test_gray, None)
 
 keypoints_without_size = np.copy(training_image)
 keypoints_with_size = np.copy(training_image)
@@ -68,7 +68,7 @@ matches = bf.match(train_descriptor, test_descriptor)
 # The matches with shorter distance are the ones we want.
 matches = sorted(matches, key = lambda x : x.distance)
 
-result = cv2.drawMatches(training_image, train_keypoints, test_gray, test_keypoints, matches, test_gray, flags = 2)
+result = cv2.drawMatches(training_image, train_keypoints, test_gray, test_keypoints, matches[:MIN_MATCH_COUNT], test_gray, flags = 2)
 
 # Display the best matching points
 plt.rcParams['figure.figsize'] = [14.0, 7.0]

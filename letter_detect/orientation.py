@@ -18,8 +18,8 @@ fast = cv2.FastFeatureDetector_create()
 orb = cv2.ORB_create()
 
 # Find the keypoints and descriptors with FREAK
-kp1, des1 = freak.detect(img1,None)
-kp2, des2 = freak.detect(img2,None)
+kp1, des1 = freak.detectAndCompute(img1,None)
+kp2, des2 = freak.detectAndCompute(img2,None)
 
 FLANN_INDEX_KDTREE = 0
 index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
@@ -27,7 +27,7 @@ search_params = dict(checks = 50)
 
 flann = cv2.FlannBasedMatcher(index_params, search_params)
 
-matches = flann.knnMatch(des1,des2,k=2)
+matches = flann.knnMatch(des1, des2,k=2)
 
 # store all the good matches as per Lowe's ratio test.
 good = []
