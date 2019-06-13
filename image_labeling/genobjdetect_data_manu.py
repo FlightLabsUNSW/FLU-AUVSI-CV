@@ -7,7 +7,7 @@ import queue
 from enum import Enum
 import json
 
-DEBUG = True
+DEBUG = False
 
 class Formatter(Enum):
     yolo_dataset = 0
