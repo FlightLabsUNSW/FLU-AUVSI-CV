@@ -25,6 +25,7 @@ net2 = cv.dnn.readNetFromDarknet(modelConfiguration, modelWeights2)
 net2.setPreferableBackend(cv.dnn.DNN_BACKEND_OPENCV)
 net2.setPreferableTarget(cv.dnn.DNN_TARGET_OPENCL)
 
+obj_id = 0
 
 # Get the names of the output layers
 def getOutputsNames(net):
@@ -151,6 +152,8 @@ def run_classification(data_pipe, cmd_pipe=Dummy_pipe(), vid_names=default_vids)
                         with open(os.path.join(out_folder, str(obj_id)+'.json'), 'w') as obj_fi:
                             json.dump(obj_fi, obj_metadata)
 
+                        obj_id += 1
+
                     data_pipe.send(obj_detected)
                     cmd_pipe.send({'object_sent':1})
         all_done = True
@@ -192,7 +195,6 @@ if __name__ == "__main__":
     real_proc.start()
 
     done = False
-    obj_id = 0
     while not done:
         cmd = input(">>> ")
         if cmd == "finish":
@@ -204,9 +206,6 @@ if __name__ == "__main__":
         while data_pipe_parent.poll():
             classifications = data_pipe_parent.recv()
             for detection in classifications['objects']:
-                cropped_img = classifications['image'][detection['left']:detection['right'],detection['top']:detection['bottom']]
-                cv.imwrite(os.path.join(out_folder, str(obj_id)+'.jpg'), cropped_img)
-
                 obj_metadata = {
                         'time_taken':classifications['time_taken'],
                         'detection_data':detection
