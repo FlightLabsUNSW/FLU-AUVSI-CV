@@ -1,6 +1,12 @@
 from Analysis import Analysis
 
+import json
+import zipfile
+import cv2
+
 class ODLC(object):
+	SEND_THRESHOLD = 20
+
 	def __init__(self, id, initial_confidence, initial_image, initial_latitude, initial_longitude, initial_image_distance, threshold, autonomous):
 		self.id                 = id                     # Internal ID
 		self.confidence         = initial_confidence     # Confidence that the object is correct
@@ -31,8 +37,25 @@ class ODLC(object):
 		if (new_distance < self.image_distance):
 			self.best_image     = new_image
 			self.image_distance = new_distance
-		
 
+	# Makes a zip folder containing a json string file and image of the object
+	def send_object_to_ground(self):
+		# Get dictionary with all the object data
+		dictionary = self.get_dict_to_send()
+
+		string = json.dumps(dictionary)
+
+		ret, img_buff = cv2.imencode(".jpg", self.best_image)
+
+		with zipfile.ZipFile("objects/" + str(self.id) + ".zip", "w") as myzip:
+			myzip.writestr(str(self.id) + ".json", string)
+			myzip.writestr(str(self.id) + ".png",  img_buff)
+
+		self.sent = True
+
+	def update_threshold(self):
+		self.threshold += 0.01
+		
 class Shape(ODLC):
 	def __init__(self, id, initial_confidence, initial_snapshot_time, initial_image, initial_latitude, initial_longitude, initial_image_distance, threshold):
 		super().__init__(id, initial_confidence, initial_image, initial_latitude, initial_longitude, initial_image_distance, threshold, True)
@@ -51,6 +74,8 @@ class Shape(ODLC):
 		self.unanalysed_shapes.append(initial_object)
 
 	def add_new_shape(self, new_confidence, new_snapshot_time, new_image, new_latitude, new_longitude, new_distance):
+		if (new_confidence < self.threshold):
+			return False
 		
 		new_object = self.add_new_object(new_confidence, new_image, new_latitude, new_longitude, new_distance)
 
@@ -62,6 +87,11 @@ class Shape(ODLC):
 
 		# Add the new object to the unanalysed objects list
 		self.unanalysed_shapes.append(new_object)
+
+		# Update threshold
+		#self.update_threshold()
+
+		return True
 
 	# Method to run in analysis process
 	def run_analysis(self, conn):
@@ -91,6 +121,10 @@ class Shape(ODLC):
 
 		# Reset unanalysed objects list
 		self.unanalysed_shapes = []
+
+		# Check if object can be sent to ground
+		if (self.completed):
+			self.send_object_to_ground()
 
 		# Send analysed ODLC class back to the manager process
 		conn.send(self)
@@ -184,6 +218,14 @@ class Shape(ODLC):
 
 		return most_common_character_colour
 
+	@property
+	def completed(self):
+		# Check main confidence
+		if (self.num_objects < self.SEND_THRESHOLD):
+			return False
+
+		return True
+
 	def get_dict_to_send(self):
 		dictionary = {
 			"num objects seen":     self.num_objects,
@@ -199,14 +241,26 @@ class Shape(ODLC):
 
 		return dictionary
 
+	def __str__(self):
+		return str(self.id)
+
 class Person(ODLC):
 	def __init__(self, id, initial_confidence, initial_snapshot_time, initial_image, initial_latitude, initial_longitude, initial_image_distance, threshold):
 		super().__init__(id, initial_confidence, initial_image, initial_latitude, initial_longitude, initial_image_distance, threshold, False)
 
 	def add_new_person(self, new_confidence, new_snapshot_time, new_image, new_latitude, new_longitude, new_distance):
+		if (new_confidence < self.threshold):
+			return False
+
+		# add the object
 		new_object = self.add_new_object(new_confidence, new_image, new_latitude, new_longitude, new_distance)
 
 		self.num_objects += 1
+
+		# Update threshold
+		self.update_threshold()
+
+		return True
 
 	def get_dict_to_send(self):
 		dictionary = {
@@ -223,3 +277,6 @@ class Person(ODLC):
 	@property
 	def total_num_objects(self):
 		return self.num_objects
+
+	def __str__(self):
+		return str(self.id)
