@@ -1,4 +1,4 @@
-import cv2
+import cv2 as cv
 import pickle
 
 def real_time_process(conn):
@@ -33,8 +33,8 @@ def run_classification(data_pipe, cmd_pipe=Dummy_pipe(), vid_names=default_vids)
         done.append(False)
 
     cmd_pipe.send({'not_started':1})
-    while not cmd_pipe.recv().get('run'):
-        continue
+    #while not cmd_pipe.recv().get('run'):
+    #    continue
     cmd_pipe.send({'started':1})
 
     all_done = False
@@ -74,10 +74,12 @@ def run_classification(data_pipe, cmd_pipe=Dummy_pipe(), vid_names=default_vids)
         for cap_d in done:
             if not cap_d:
                 all_done = False
+        """
         while cmd_pipe.poll():
             cmd_val = cmd_pipe.recv()
             if cmd_val.get('finish'):
                 cmd_pipe.send({'finishing':1})
                 all_done = True
+        """
     #redundant from Process.join() but still do it anyway
     cmd_pipe.send({'done':1})
