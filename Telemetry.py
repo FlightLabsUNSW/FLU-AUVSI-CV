@@ -2,6 +2,7 @@
 #from sensor_msgs.msg import Imu
 
 from datetime import datetime
+import time
 
 class Data:
 	def __init__(self):
@@ -41,6 +42,7 @@ class Telemetry:
 
 		while True:
 			self.callback(data)
+			time.sleep(0.5)
 
 if __name__ == '__main__':
 	telemetry = Telemetry()
