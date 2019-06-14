@@ -20,19 +20,22 @@ parser.add_argument('--num_datasets', default=20, type=int)
 args = parser.parse_args()
 
 image_folder = args.image_folder
+print(args)
 
 all_im = []
 for i in os.listdir(image_folder):
-    if os.path.isdir(i):
-        for j in os.listdir(os.path.join(image_folder, i)):
-            all_im.append(os.path.join(image_folder, i, j))
-    else:
-        all_im.append(os.path.join(image_folder,i))
+    #if os.path.isdir(i):
+    for j in os.listdir(os.path.join(image_folder, i)):
+        all_im.append(os.path.join(image_folder, i, j))
+    #else:
+    #    all_im.append(os.path.join(image_folder,i))
+print(len(all_im))
 
 make_folder(args.dest)
 for i in range(0, args.num_datasets):
     dataset_folder = os.path.join(args.dest, str(i+1))
     make_folder(dataset_folder)
     dataset = random.sample(all_im, args.n)
+    print(len(dataset))
     for im_file in dataset:
         shutil.copy(im_file, dataset_folder)

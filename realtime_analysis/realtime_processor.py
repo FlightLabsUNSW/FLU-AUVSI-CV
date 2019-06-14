@@ -12,7 +12,7 @@ inpHeight = 416      #Height of network's input image
 
 # Give the configuration and weight files for the model and load the network using them.
 modelConfiguration = "flu-yolov3-tiny.cfg";
-modelWeights = "flu-yolov3-tiny_1000.weights";
+modelWeights = "flu-yolov3-tiny_6000.weights";
 
 net = cv.dnn.readNetFromDarknet(modelConfiguration, modelWeights)
 net.setPreferableBackend(cv.dnn.DNN_BACKEND_OPENCV)
@@ -82,12 +82,17 @@ def classify(frame):
     # Remove the bounding boxes with low confidence
     return postprocess(frame, outs)
 
+def classify_and_net(frame):
+    return classify(frame), net
+
 class Dummy_pipe():
     def send(self, data_in):
         return
 
     def recv(self):
         return True
+
+default_vids = [0,1]
 
 def run_classification(data_pipe, cmd_pipe=Dummy_pipe(), vid_names=default_vids):
     caps = []
