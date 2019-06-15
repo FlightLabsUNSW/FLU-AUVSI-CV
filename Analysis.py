@@ -1,4 +1,5 @@
 from   imutils.object_detection import non_max_suppression
+from   AnalysisFunctions import *
 import numpy as np
 import pytesseract
 import argparse
@@ -15,7 +16,7 @@ class Analysis:
 		return "rectangle"
 
 	def get_shape_colour(self):
-		return "red"
+		return get_most_common_color(self.image)
 
 	def decode_predictions(self, scores, geometry):
 
@@ -158,12 +159,13 @@ class Analysis:
 
 		return result
 		"""
+		return "?"
 
 	def get_character_colour(self):
-		return "blue"
+		return "None"
 
 	def get_character_orientation(self):
-		return 90
+		return 0
 
 if __name__ == "__main__":
 	analysis = Analysis(cv2.imread("../test.png"))
