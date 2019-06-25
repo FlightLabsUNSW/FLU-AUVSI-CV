@@ -1,4 +1,4 @@
-from RealTimeProcess import real_time_process
+from RealTimeProcess import *
 from ODLC            import Shape, Person
 from IDGenerator     import IDGenerator
 from Telemetry       import Telemetry
@@ -49,7 +49,7 @@ class Manager:
 		# Real time process with pipe
 		self.parent_conn, child_conn = mp.Pipe()
 
-		self.rtp = mp.Process(target=real_time_process, args=(child_conn,))
+		self.rtp = mp.Process(target=run_classification, args=(child_conn,)) # Change run_classification to real_time_process for dummy data
 
 		self.rtp.start()	
 
