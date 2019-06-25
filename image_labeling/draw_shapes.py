@@ -4,6 +4,8 @@ import numpy as np
 import os
 import json
 
+DEBUG = True
+
 colour_defs = {
     'white':(255,255,255),
     'black':(0,0,0),
@@ -22,6 +24,8 @@ possible_chars = [
     '0','1','2','3','4','5','6','7','8','9'
     ]
 
+def coord_dist(x1,y1,x2,y2):
+    return np.sqrt((x1-x2)**2 + (y1-y2)**2)
 
 def draw_circle(bg_img, colour):
     centre = (int(bg_img.shape[0]/2), int(bg_img.shape[1]/2))
@@ -30,12 +34,12 @@ def draw_circle(bg_img, colour):
 
 def draw_semicircle(bg_img, colour):
     centre = (int(bg_img.shape[0]/2), int(3*bg_img.shape[1]/4))
-    radius = min(int(bg_img.shape[0]/2), int(bg_img.shape[1]/2))
+    radius = int(min(*bg_img.shape[:2])/2)
     cv.circle(bg_img, centre, radius, colour, cv.FILLED)
     cv.rectangle(bg_img, (0,centre[1]), bg_img.shape[:2], (255,255,255,255), cv.FILLED)
 
 def draw_quarter_circle(bg_img, colour):
-    radius = int(6*450/7)
+    radius = int(6*min(*bg_img.shape[:2])/7)
     centre = (int(bg_img.shape[0]/2 - 4/(3*np.pi)*radius), int(bg_img.shape[1]/2 + 4/(3*np.pi)*radius))
     cv.circle(bg_img, centre, radius, colour, cv.FILLED)
     p1 = (0,0)
@@ -74,54 +78,93 @@ def draw_trapezoid(bg_img, colour):
 
 
 def draw_pentagon(bg_img, colour):
-    p1 = 225,0
-    p2 = 11,155
-    p3 = 93,407
-    p4 = 357,407
-    p5 = 439,155
-    pts_in = np.array([[p1,p2,p3,p4,p5]], dtype=np.int32)
+    numberOfPoints = 5
+    rotationAngle = -np.pi/2
+    xCenter = bg_img.shape[0]/2
+    yCenter = bg_img.shape[1]/2
+
+    start = 0.0
+    stop = (numberOfPoints-1)*np.pi*2
+    step = (numberOfPoints-1)/numberOfPoints*np.pi*2
+    # Determine the angles that the arm tips are at
+    theta = np.arange(start, stop, step) + rotationAngle;
+    # Define distance from the arm tip to the center of star.
+    amplitude = min(*bg_img.shape[:2])/2
+    theta = np.sort(np.mod(theta, 2*np.pi))
+
+    # Get x and y coordinates of the arm tips.
+    x = np.multiply(amplitude , np.cos(theta)) + xCenter
+    y = np.multiply(amplitude , np.sin(theta)) + yCenter
+    pts_in = np.array([[(int(x[i]), int(y[i])) for i in range(min(len(x),len(y)))]], dtype=np.int32)
     cv.polylines(bg_img, pts=pts_in, isClosed=False, color=colour)
     cv.fillPoly(bg_img, pts=pts_in, color=colour)
     
 
 def draw_hexagon(bg_img, colour):
-    p1 = 225,0
-    p2 = 30,112
-    p3 = 30,337
-    p4 = 225,450
-    p5 = 420,338
-    p6 = 420,113
-    pts_in = np.array([[p1,p2,p3,p4,p5,p6]], dtype=np.int32)
+    numberOfPoints = 6
+    rotationAngle = -np.pi/2
+    xCenter = bg_img.shape[0]/2
+    yCenter = bg_img.shape[1]/2
+
+    start = 0.0
+    stop = (numberOfPoints-1)*np.pi*2
+    step = (numberOfPoints-1)/numberOfPoints*np.pi*2
+    # Determine the angles that the arm tips are at
+    theta = np.arange(start, stop, step) + rotationAngle;
+    # Define distance from the arm tip to the center of star.
+    amplitude = min(*bg_img.shape[:2])/2
+    theta = np.sort(np.mod(theta, 2*np.pi))
+
+    # Get x and y coordinates of the arm tips.
+    x = np.multiply(amplitude , np.cos(theta)) + xCenter
+    y = np.multiply(amplitude , np.sin(theta)) + yCenter
+    pts_in = np.array([[(int(x[i]), int(y[i])) for i in range(min(len(x),len(y)))]], dtype=np.int32)
     cv.polylines(bg_img, pts=pts_in, isClosed=False, color=colour)
     cv.fillPoly(bg_img, pts=pts_in, color=colour)
 
 def draw_heptagon(bg_img, colour):
-    p1 = 225,0
-    p2 = 49,85
-    p3 = 6,275
-    p4 = 127,428
-    p5 = 323,428
-    p6 = 444,275
-    p7 = 401,85
-    pts_in = np.array([[p1,p2,p3,p4,p5,p6,p7]], dtype=np.int32)
+    numberOfPoints = 7
+    rotationAngle = -np.pi/2
+    xCenter = bg_img.shape[0]/2
+    yCenter = bg_img.shape[1]/2
+
+    start = 0.0
+    stop = (numberOfPoints-1)*np.pi*2
+    step = (numberOfPoints-1)/numberOfPoints*np.pi*2
+    # Determine the angles that the arm tips are at
+    theta = np.arange(start, stop, step) + rotationAngle;
+    # Define distance from the arm tip to the center of star.
+    amplitude = min(*bg_img.shape[:2])/2
+    theta = np.sort(np.mod(theta, 2*np.pi))
+
+    # Get x and y coordinates of the arm tips.
+    x = np.multiply(amplitude , np.cos(theta)) + xCenter
+    y = np.multiply(amplitude , np.sin(theta)) + yCenter
+    pts_in = np.array([[(int(x[i]), int(y[i])) for i in range(min(len(x),len(y)))]], dtype=np.int32)
     cv.polylines(bg_img, pts=pts_in, isClosed=False, color=colour)
     cv.fillPoly(bg_img, pts=pts_in, color=colour)
 
 def draw_octagon(bg_img, colour):
-    p1 = 225,0
-    p2 = 66,66
-    p3 = 0,225
-    p4 = 66,384
-    p5 = 225,450
-    p6 = 384,384
-    p7 = 450,225
-    p8 = 384,66
-    pts_in = np.array([[p1,p2,p3,p4,p5,p6,p7,p8]], dtype=np.int32)
+    numberOfPoints = 8
+    rotationAngle = -np.pi/2
+    xCenter = bg_img.shape[0]/2
+    yCenter = bg_img.shape[1]/2
+
+    start = 0.0
+    stop = (numberOfPoints-1)*np.pi*2
+    step = (numberOfPoints-1)/numberOfPoints*np.pi*2
+    # Determine the angles that the arm tips are at
+    theta = np.arange(start, stop, step) + rotationAngle;
+    # Define distance from the arm tip to the center of star.
+    amplitude = min(*bg_img.shape[:2])/2
+    theta = np.sort(np.mod(theta, 2*np.pi))
+
+    # Get x and y coordinates of the arm tips.
+    x = np.multiply(amplitude , np.cos(theta)) + xCenter
+    y = np.multiply(amplitude , np.sin(theta)) + yCenter
+    pts_in = np.array([[(int(x[i]), int(y[i])) for i in range(min(len(x),len(y)))]], dtype=np.int32)
     cv.polylines(bg_img, pts=pts_in, isClosed=False, color=colour)
     cv.fillPoly(bg_img, pts=pts_in, color=colour)
-
-def coord_dist(x1,y1,x2,y2):
-    return np.sqrt((x1-x2)**2 + (y1-y2)**2)
 
 def draw_star(bg_img, colour):
     numberOfPoints = 5
@@ -220,61 +263,70 @@ possible_shapes = [
     ('cross', draw_cross),
     ]
 
+if DEBUG:
+    colour = colour_defs['red']
+    for shape, shape_func in possible_shapes:
+        shape_img = np.ones((1080,1080,4), np.uint8)*255
+        shape_func(shape_img, colour)
+        cv.imshow('img', shape_img)
+        cv.waitKey(0)
+        cv.destroyAllWindows()
 
-#for alpha_i, alphanum in enumerate(possible_chars):
-#    with open('flu_oldcs.names', 'a') as classfile:
-#        classfile.write(alphanum+'\n')
-
-open('shape_flu.names', 'w').close()
-#for shape_i, shapenum in enumerate(possible_shapes):
-#    shapenum = shapenum[0]
-#    with open('shape_flu.names', 'a') as classfile:
-#        classfile.write(shapenum+'\n')
-
-out_dir = 'flu_odlcs'
-out_path = os.path.join(os.getcwd(), out_dir)
-img_num = 0
-for shape_index, shape_pair in enumerate(possible_shapes):
-    shape, func = shape_pair
-    with open('shape_flu.names', 'a') as classfile:
-        classfile.write(shape+'\n')
-    for alpha_i, alphanum in enumerate(possible_chars):
-        for colour_name1, shape_colour in colour_defs.items():
-            for colour_name2, letter_colour in colour_defs.items():
-                if colour_name1 != colour_name2:
-                    shape_img = np.ones((450,450,4), np.uint8)*255
-                    func(shape_img, shape_colour)
-                    alpha_pos = draw_alphanum(shape_img,letter_colour, alphanum)
-                    meta_dict = {
-                            'alpha_num':alphanum,
-                            'class_id':alpha_i,
-                            'shape_class_id':shape_index,
-                            'alpha_colour':colour_name2,
-                            'shape':shape,
-                            'shape_colour':colour_name1,
-                            'icdar_text':{
-                                'xy1':(alpha_pos[0],alpha_pos[3]),
-                                'xy2':(alpha_pos[2],alpha_pos[3]),
-                                'xy3':(alpha_pos[0],alpha_pos[1]),
-                                'xy4':(alpha_pos[2],alpha_pos[1])
-                                },
-                            'yolo_spot':{
-                                'x_center':shape_img.shape[0]/2,
-                                'y_center':shape_img.shape[1]/2,
-                                'width':shape_img.shape[0],
-                                'height':shape_img.shape[1]
+else:
+    #for alpha_i, alphanum in enumerate(possible_chars):
+    #    with open('flu_oldcs.names', 'a') as classfile:
+    #        classfile.write(alphanum+'\n')
+    
+    open('shape_flu.names', 'w').close()
+    #for shape_i, shapenum in enumerate(possible_shapes):
+    #    shapenum = shapenum[0]
+    #    with open('shape_flu.names', 'a') as classfile:
+    #        classfile.write(shapenum+'\n')
+    
+    out_dir = 'flu_odlcs'
+    out_path = os.path.join(os.getcwd(), out_dir)
+    img_num = 0
+    for shape_index, shape_pair in enumerate(possible_shapes):
+        shape, func = shape_pair
+        with open('shape_flu.names', 'a') as classfile:
+            classfile.write(shape+'\n')
+        for alpha_i, alphanum in enumerate(possible_chars):
+            for colour_name1, shape_colour in colour_defs.items():
+                for colour_name2, letter_colour in colour_defs.items():
+                    if colour_name1 != colour_name2:
+                        shape_img = np.ones((450,450,4), np.uint8)*255
+                        func(shape_img, shape_colour)
+                        alpha_pos = draw_alphanum(shape_img,letter_colour, alphanum)
+                        meta_dict = {
+                                'alpha_num':alphanum,
+                                'class_id':alpha_i,
+                                'shape_class_id':shape_index,
+                                'alpha_colour':colour_name2,
+                                'shape':shape,
+                                'shape_colour':colour_name1,
+                                'icdar_text':{
+                                    'xy1':(alpha_pos[0],alpha_pos[3]),
+                                    'xy2':(alpha_pos[2],alpha_pos[3]),
+                                    'xy3':(alpha_pos[0],alpha_pos[1]),
+                                    'xy4':(alpha_pos[2],alpha_pos[1])
+                                    },
+                                'yolo_spot':{
+                                    'x_center':shape_img.shape[0]/2,
+                                    'y_center':shape_img.shape[1]/2,
+                                    'width':shape_img.shape[0],
+                                    'height':shape_img.shape[1]
+                                    }
                                 }
-                            }
-                    #for key,val in meta_dict['icdar_text'].items():
-                    #    cv.drawMarker(shape_img, val, colour_defs['white'])
-                    #cv.imshow('img', shape_img)
-                    #cv.waitKey(0)
-                    #invert alpha channel
-                    shape_img[:,:,-1] = -shape_img[:,:,-1]+255
-                    cv.imwrite(os.path.join(out_path, str(img_num)+'.png'), shape_img)
-                    file_path = os.path.join(out_path, str(img_num)+'.txt')
-                    with open(file_path, 'w') as meta_file:
-                        json.dump(meta_dict, meta_file)
-                    img_num += 1
+                        #for key,val in meta_dict['icdar_text'].items():
+                        #    cv.drawMarker(shape_img, val, colour_defs['white'])
+                        #cv.imshow('img', shape_img)
+                        #cv.waitKey(0)
+                        #invert alpha channel
+                        shape_img[:,:,-1] = -shape_img[:,:,-1]+255
+                        cv.imwrite(os.path.join(out_path, str(img_num)+'.png'), shape_img)
+                        file_path = os.path.join(out_path, str(img_num)+'.txt')
+                        with open(file_path, 'w') as meta_file:
+                            json.dump(meta_dict, meta_file)
+                        img_num += 1
 cv.destroyAllWindows()
 
